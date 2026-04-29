@@ -130,24 +130,21 @@
         </div>
       </div>
 
-      <div class="hero-right">
-        <div class="mode-badge mode-server">MANAGED</div>
-      </div>
     </div>
   </div>
 
   <div class="wrapper">
     <main>
 
-      <div class="quick-ioc-bar">
-        <div class="quick-ioc-label">
+      <div class="quick-ip-bar">
+        <div class="quick-ip-label">
           <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
             <circle cx="6" cy="6" r="5" stroke="var(--accent2)" stroke-width="1" />
             <path d="M6 3v3.5L8 8" stroke="var(--accent2)" stroke-width="1" stroke-linecap="round" />
           </svg>
           QUICK LOOKUP
         </div>
-        <input type="text" id="single-ip-input" class="quick-ioc-input"
+        <input type="text" id="single-ip-input" class="quick-ip-input"
           placeholder="Paste a single IP address — IPv4 or IPv6 — press Enter"
           onkeydown="if(event.key==='Enter') scanSingleIP()">
         <button class="btn btn-quick" onclick="scanSingleIP()">
@@ -379,7 +376,7 @@
                 <circle cx="5.5" cy="5.5" r="4.5" stroke="var(--muted)" stroke-width="1" />
                 <path d="M5.5 3.5v2.5l1.5 1.5" stroke="var(--muted)" stroke-width="1" stroke-linecap="round" />
               </svg>
-              <span id="rate-note-text">Managed · Parallel engine · 10 sources</span>
+              <span id="rate-note-text">Parallel engine · 10 sources</span>
             </div>
             <div class="scan-count" id="scan-count"></div>
           </div>

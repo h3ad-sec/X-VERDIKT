@@ -24,7 +24,7 @@ async function detectServerStatus() {
         window._serverVTPaid = status.vt_paid === true;
         setServerStatusDots(status);
         const rn = document.getElementById('rate-note-text');
-        if (rn) rn.textContent = status.vt_paid ? 'Managed · VT Paid — fully parallel' : 'Managed · VT Free — token bucket';
+        if (rn) rn.textContent = status.vt_paid ? 'VT Paid — fully parallel' : 'VT Free — token bucket';
         const active = ['vt','abuseipdb','otx'].filter(k => status[k]).length;
         showToast(`Server online — ${active}/3 primary sources configured`, active >= 2 ? 'success' : 'warning');
         return;
