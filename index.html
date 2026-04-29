@@ -4,9 +4,9 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>X-VERDIKT — Deep IP Intelligence</title>
+  <title>X-VERDIKT — Deep IOC Intelligence</title>
   <meta name="description"
-    content="X-VERDIKT by H3AD-SEC — Deep IP enrichment with 10 threat intelligence sources. VT · AbuseIPDB · OTX · URLScan · ThreatFox · URLhaus · MalwareBazaar · HybridAnalysis · Shodan. Zero Ambiguity.">
+    content="X-VERDIKT by H3AD-SEC — Deep IOC enrichment with 10 threat intelligence sources. Supports IPs, domains, URLs, and hashes. VT · AbuseIPDB · OTX · URLScan · ThreatFox · URLhaus · MalwareBazaar · HybridAnalysis · Shodan. Zero Ambiguity.">
   <link rel="icon" href="https://h3ad-sec.github.io/fevicon.png?v=2026" type="image/png">
   <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Inter:wght@300;400;500;600&display=swap"
     rel="stylesheet">
@@ -90,7 +90,7 @@
         <a class="hero-title" href="https://h3ad-sec.github.io/X-VERDIKT/" style="text-decoration:none">
           <span class="hero-x">X</span><span class="hero-verdikt">-VERDIKT</span>
         </a>
-        <div class="hero-tagline">Deep IP Intelligence. Zero Ambiguity.</div>
+        <div class="hero-tagline">Deep IOC Intelligence. Zero Ambiguity.</div>
       </div>
 
       <div class="hero-status">
@@ -144,9 +144,9 @@
           QUICK LOOKUP
         </div>
         <input type="text" id="single-ip-input" class="quick-ip-input"
-          placeholder="Paste a single IP address — IPv4 or IPv6 — press Enter"
-          onkeydown="if(event.key==='Enter') scanSingleIP()">
-        <button class="btn btn-quick" onclick="scanSingleIP()">
+          placeholder="Paste any IOC — IP, domain, URL, or hash — press Enter"
+          onkeydown="if(event.key==='Enter') scanSingleIOC()">
+        <button class="btn btn-quick" onclick="scanSingleIOC()">
           <svg width="13" height="13" viewBox="0 0 13 13" fill="none">
             <circle cx="6" cy="6" r="5" stroke="currentColor" stroke-width="1.5" />
             <path d="M6 3.5v2.5l1.5 1.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />
@@ -162,7 +162,7 @@
               <rect x="1" y="1" width="11" height="11" stroke="var(--accent2)" stroke-width="1" />
               <path d="M3 4h7M3 6.5h7M3 9h4" stroke="var(--accent2)" stroke-width="1" />
             </svg>
-            BULK IP INPUT
+            BULK IOC INPUT
           </div>
           <div class="ioc-parsed-info" id="ioc-parsed-info"></div>
         </div>
@@ -174,9 +174,9 @@
 
           <div class="tab-pane active" id="tab-text">
             <textarea class="ioc-textarea" id="ip-input"
-              placeholder="Paste IP addresses — one per line or space/comma separated&#10;&#10;Examples:&#10;  8.8.8.8&#10;  2001:4860:4860::8888&#10;  1[.]2[.]3[.]4  (defanged)&#10;&#10;Ctrl+Enter to analyze"
-              oninput="parseIPsRealtime()"></textarea>
-            <div class="textarea-hint">Auto-detects IPv4 · IPv6 · Defanged IPs · Private ranges skipped · Deduplication</div>
+              placeholder="Paste IOCs — one per line or comma/space separated&#10;&#10;Examples:&#10;  8.8.8.8&#10;  evil.example.com&#10;  https://malware.example.com/payload.exe&#10;  44d88612fea8a8f36de82e1278abb02f  (MD5)&#10;  1[.]2[.]3[.]4  (defanged)&#10;&#10;Ctrl+Enter to analyze"
+              oninput="parseIOCsRealtime()"></textarea>
+            <div class="textarea-hint">Auto-detects IPv4 · IPv6 · Domains · URLs · MD5/SHA1/SHA256/SHA512 · Defanged IOCs · Deduplication</div>
           </div>
 
           <div class="tab-pane" id="tab-file">
@@ -252,8 +252,16 @@
             <button class="result-filter" data-filter="benign" onclick="filterResults('benign',this)">🟢 BENIGN</button>
             <button class="result-filter" data-filter="unknown" onclick="filterResults('unknown',this)">⚪ UNKNOWN</button>
           </div>
+          <div class="filter-group">
+            <span class="filter-bar-label">TYPE:</span>
+            <button class="type-filter active" data-tfilter="all" onclick="filterByType('all',this)">ALL</button>
+            <button class="type-filter" data-tfilter="ip" onclick="filterByType('ip',this)" style="color:var(--ab)">IP</button>
+            <button class="type-filter" data-tfilter="domain" onclick="filterByType('domain',this)" style="color:#10b981">DOM</button>
+            <button class="type-filter" data-tfilter="url" onclick="filterByType('url',this)" style="color:var(--us)">URL</button>
+            <button class="type-filter" data-tfilter="hash" onclick="filterByType('hash',this)" style="color:var(--mb)">HASH</button>
+          </div>
           <div class="search-wrap">
-            <input type="text" class="result-search" id="result-search" placeholder="SEARCH IP…"
+            <input type="text" class="result-search" id="result-search" placeholder="SEARCH IOC…"
               oninput="searchResults(this.value)">
           </div>
         </div>
@@ -262,7 +270,7 @@
           <table class="results-table" id="results-table">
             <thead>
               <tr>
-                <th class="col-ioc">IP ADDRESS</th>
+                <th class="col-ioc">IOC</th>
                 <th class="col-type">TYPE</th>
                 <th class="col-verdict">VERDICT · SCORE</th>
                 <th class="col-vt">VT <span style="color:var(--muted);font-weight:400">/40</span></th>
@@ -287,7 +295,7 @@
         <span class="footer-sep">//</span>
         <span class="footer-muted">VT · AbuseIPDB · OTX · URLScan · ThreatFox · URLhaus · MalwareBazaar · HybridAnalysis · Shodan</span>
         <span class="footer-sep">//</span>
-        <span class="footer-muted">Deep IP Intelligence. Zero Ambiguity.</span>
+        <span class="footer-muted">Deep IOC Intelligence. Zero Ambiguity.</span>
       </div>
     </footer>
   </div>

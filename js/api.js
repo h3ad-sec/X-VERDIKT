@@ -4,79 +4,130 @@ const SERVER_BASE = (() => {
   return isStatic ? 'https://x-verdikt.vercel.app' : '';
 })();
 
+function vtUrlId(url) {
+  try { return btoa(url).replace(/\+/g,'-').replace(/\//g,'_').replace(/=/g,''); }
+  catch(_) {
+    /* non-Latin1: percent-encode first */
+    return btoa(encodeURIComponent(url)).replace(/\+/g,'-').replace(/\//g,'_').replace(/=/g,'');
+  }
+}
+
 const API = {
 
-  async virusTotal(ip, signal) {
-    const path = `/api/v3/ip_addresses/${encodeURIComponent(ip.value)}`;
+  async virusTotal(ioc, signal) {
+    let path;
+    const t = ioc.type;
+    if (t === 'ip' || t === 'ipv6')   path = `/api/v3/ip_addresses/${encodeURIComponent(ioc.value)}`;
+    else if (t === 'domain')          path = `/api/v3/domains/${encodeURIComponent(ioc.value)}`;
+    else if (t === 'url')             path = `/api/v3/urls/${vtUrlId(ioc.value)}`;
+    else if (t.startsWith('hash_'))   path = `/api/v3/files/${encodeURIComponent(ioc.value)}`;
+    else return { source: 'virustotal', skipped: true, reason: 'Unsupported type' };
     try {
       const resp = await fetch(`${SERVER_BASE}/api/vt?path=${encodeURIComponent(path)}`, { signal });
       if (!resp.ok) return vtHttpErr(resp.status);
-      return parseVTIPResponse(await resp.json());
+      return parseVTResponse(await resp.json(), t);
     } catch(e) { return { source: 'virustotal', error: fmtErr(e) }; }
   },
 
-  async abuseIPDB(ip, signal) {
+  async abuseIPDB(ioc, signal) {
+    if (ioc.type !== 'ip' && ioc.type !== 'ipv6')
+      return { source: 'abuseipdb', skipped: true, reason: 'IP only' };
     try {
-      const resp = await fetch(`${SERVER_BASE}/api/abuseipdb?ip=${encodeURIComponent(ip.value)}`, { signal });
+      const resp = await fetch(`${SERVER_BASE}/api/abuseipdb?ip=${encodeURIComponent(ioc.value)}`, { signal });
       if (!resp.ok) return abHttpErr(resp.status);
       return parseAbuseIPDBResponse(await resp.json());
     } catch(e) { return { source: 'abuseipdb', error: fmtErr(e) }; }
   },
 
-  async otx(ip, signal) {
-    const section = ip.type === 'ipv6' ? 'IPv6' : 'IPv4';
-    const path = `/api/v1/indicators/${section}/${ip.value}/general`;
+  async otx(ioc, signal) {
+    const t = ioc.type;
+    let section;
+    if (t === 'ip')                section = `IPv4/${encodeURIComponent(ioc.value)}`;
+    else if (t === 'ipv6')         section = `IPv6/${encodeURIComponent(ioc.value)}`;
+    else if (t === 'domain')       section = `domain/${encodeURIComponent(ioc.value)}`;
+    else if (t === 'url')          section = `url/${encodeURIComponent(ioc.value)}`;
+    else if (t.startsWith('hash_'))section = `file/${encodeURIComponent(ioc.value)}`;
+    else return { source: 'otx', skipped: true, reason: 'Unsupported type' };
+    const path = `/api/v1/indicators/${section}/general`;
     try {
       const resp = await fetch(`${SERVER_BASE}/api/otx?path=${encodeURIComponent(path)}`, { signal });
       if (!resp.ok) return otxHttpErr(resp.status);
-      return parseOTXIPResponse(await resp.json());
+      return parseOTXResponse(await resp.json(), t, ioc.value);
     } catch(e) { return { source: 'otx', error: fmtErr(e) }; }
   },
 
-  async urlscan(ip, signal) {
+  async urlscan(ioc, signal) {
+    const t = ioc.type;
+    if (t.startsWith('hash_'))
+      return { source: 'urlscan', skipped: true, reason: 'N/A for hashes' };
+    let q;
+    if (t === 'ip' || t === 'ipv6') q = `ip:${ioc.value}`;
+    else if (t === 'domain')        q = `domain:${ioc.value}`;
+    else if (t === 'url')           q = `page.url:"${ioc.value}"`;
+    else return { source: 'urlscan', skipped: true, reason: 'Unsupported type' };
     try {
-      const resp = await fetch(`${SERVER_BASE}/api/urlscan?q=${encodeURIComponent(`ip:${ip.value}`)}`, { signal });
+      const resp = await fetch(`${SERVER_BASE}/api/urlscan?q=${encodeURIComponent(q)}`, { signal });
       if (!resp.ok) return { source: 'urlscan', error: `HTTP ${resp.status}` };
       return parseURLScanResponse(await resp.json());
     } catch(e) { return { source: 'urlscan', error: fmtErr(e) }; }
   },
 
-  async threatfox(ip, signal) {
+  async threatfox(ioc, signal) {
     try {
-      const resp = await fetch(`${SERVER_BASE}/api/threatfox?q=${encodeURIComponent(ip.value)}`, { signal });
+      const resp = await fetch(`${SERVER_BASE}/api/threatfox?q=${encodeURIComponent(ioc.value)}`, { signal });
       if (!resp.ok) return { source: 'threatfox', error: `HTTP ${resp.status}` };
       return parseThreatFoxResponse(await resp.json());
     } catch(e) { return { source: 'threatfox', error: fmtErr(e) }; }
   },
 
-  async urlhaus(ip, signal) {
+  async urlhaus(ioc, signal) {
+    const t = ioc.type;
+    let param;
+    if (t === 'ip' || t === 'ipv6' || t === 'domain') param = `host=${encodeURIComponent(ioc.value)}`;
+    else if (t === 'url')           param = `url=${encodeURIComponent(ioc.value)}`;
+    else if (t === 'hash_md5')      param = `md5=${encodeURIComponent(ioc.value)}`;
+    else if (t === 'hash_sha256')   param = `sha256=${encodeURIComponent(ioc.value)}`;
+    else return { source: 'urlhaus', skipped: true, reason: 'Hash type not supported' };
     try {
-      const resp = await fetch(`${SERVER_BASE}/api/urlhaus?host=${encodeURIComponent(ip.value)}`, { signal });
+      const resp = await fetch(`${SERVER_BASE}/api/urlhaus?${param}`, { signal });
       if (!resp.ok) return { source: 'urlhaus', error: `HTTP ${resp.status}` };
-      return parseURLhausHostResponse(await resp.json());
+      return parseURLhausResponse(await resp.json(), t);
     } catch(e) { return { source: 'urlhaus', error: fmtErr(e) }; }
   },
 
-  async malwarebazaar(ip, signal) {
+  async malwarebazaar(ioc, signal) {
+    const t = ioc.type;
+    let param;
+    if (t.startsWith('hash_')) param = `hash=${encodeURIComponent(ioc.value)}`;
+    else if (t === 'ip')       param = `tag=${encodeURIComponent(ioc.value)}`;
+    else return { source: 'malwarebazaar', skipped: true, reason: 'IP/hash only' };
     try {
-      const resp = await fetch(`${SERVER_BASE}/api/malwarebazaar?tag=${encodeURIComponent(ip.value)}`, { signal });
+      const resp = await fetch(`${SERVER_BASE}/api/malwarebazaar?${param}`, { signal });
       if (!resp.ok) return { source: 'malwarebazaar', skipped: true, reason: 'No response' };
-      return parseMBTagResponse(await resp.json());
+      return parseMBResponse(await resp.json(), t);
     } catch(e) { return { source: 'malwarebazaar', skipped: true, reason: fmtErr(e) }; }
   },
 
-  async hybridanalysis(ip, signal) {
+  async hybridanalysis(ioc, signal) {
+    const t = ioc.type;
+    let param;
+    if (t === 'ip')            param = `ip=${encodeURIComponent(ioc.value)}`;
+    else if (t === 'hash_md5')    param = `hash=${encodeURIComponent(ioc.value)}&htype=md5`;
+    else if (t === 'hash_sha1')   param = `hash=${encodeURIComponent(ioc.value)}&htype=sha1`;
+    else if (t === 'hash_sha256') param = `hash=${encodeURIComponent(ioc.value)}&htype=sha256`;
+    else return { source: 'hybridanalysis', skipped: true, reason: t === 'hash_sha512' ? 'SHA-512 not supported' : 'IP/hash only' };
     try {
-      const resp = await fetch(`${SERVER_BASE}/api/hybridanalysis?ip=${encodeURIComponent(ip.value)}`, { signal });
+      const resp = await fetch(`${SERVER_BASE}/api/hybridanalysis?${param}`, { signal });
       if (!resp.ok) return { source: 'hybridanalysis', error: `HTTP ${resp.status}` };
       return parseHybridAnalysisResponse(await resp.json());
     } catch(e) { return { source: 'hybridanalysis', error: fmtErr(e) }; }
   },
 
-  async shodan(ip, signal) {
-    if (ip.type === 'ipv6') return { source: 'shodan', skipped: true, reason: 'IPv4 only' };
+  async shodan(ioc, signal) {
+    if (ioc.type !== 'ip')
+      return { source: 'shodan', skipped: true, reason: ioc.type === 'ipv6' ? 'IPv4 only' : 'IP only' };
     try {
-      const resp = await fetch(`${SERVER_BASE}/api/shodan?ip=${encodeURIComponent(ip.value)}`, { signal });
+      const resp = await fetch(`${SERVER_BASE}/api/shodan?ip=${encodeURIComponent(ioc.value)}`, { signal });
       if (resp.ok) return parseShodanFullResponse(await resp.json());
       if (resp.status === 404) return { source: 'shodan', verdict: 'benign', ports: [], cves: [], tags: [], hostnames: [], full: true, scoreLabel: 'Not indexed' };
       return { source: 'shodan', error: `HTTP ${resp.status}` };
@@ -85,37 +136,133 @@ const API = {
 };
 
 
-function parseVTIPResponse(data) {
+/* ── VT parsers ─────────────────────────────────────────────────────────── */
+function parseVTResponse(data, iocType) {
   const attrs = data?.data?.attributes || {};
   const stats = attrs.last_analysis_stats || {};
   const mal = stats.malicious || 0, sus = stats.suspicious || 0;
   const harm = stats.harmless || 0, undet = stats.undetected || 0;
   const total = mal + sus + harm + undet;
-  const cert = attrs.last_https_certificate || null;
-  return {
+  const scanDate = attrs.last_analysis_date
+    ? new Date(attrs.last_analysis_date * 1000).toISOString().split('T')[0] : null;
+
+  const base = {
     source: 'virustotal',
     verdict: mal > 0 ? 'malicious' : sus > 0 ? 'suspicious' : 'benign',
     malicious: mal, suspicious: sus, harmless: harm, undetected: undet, total,
-    ip: data?.data?.id || '',
-    asn: attrs.asn ?? null,
-    as_owner: attrs.as_owner || null,
-    country: attrs.country || null,
     reputation: attrs.reputation ?? null,
     tags: attrs.tags || [],
-    jarm: attrs.jarm || null,
-    network: attrs.network || null,
-    last_analysis_date: attrs.last_analysis_date
-      ? new Date(attrs.last_analysis_date * 1000).toISOString().split('T')[0] : null,
-    cert_subject_cn: cert?.subject?.CN || null,
-    cert_issuer_cn: cert?.issuer?.CN || null,
-    cert_self_signed: cert ? (cert.self_signed ?? null) : null,
-    cert_thumbprint: cert?.thumbprint_sha256 || null,
-    cert_valid_until: cert?.validity?.not_after || null,
-    link: data?.data?.id ? `https://www.virustotal.com/gui/ip-address/${data.data.id}` : null,
+    last_analysis_date: scanDate,
+  };
+
+  if (iocType === 'ip' || iocType === 'ipv6') {
+    const cert = attrs.last_https_certificate || null;
+    return {
+      ...base,
+      ip: data?.data?.id || '',
+      asn: attrs.asn ?? null,
+      as_owner: attrs.as_owner || null,
+      country: attrs.country || null,
+      jarm: attrs.jarm || null,
+      network: attrs.network || null,
+      cert_subject_cn: cert?.subject?.CN || null,
+      cert_issuer_cn: cert?.issuer?.CN || null,
+      cert_self_signed: cert ? (cert.self_signed ?? null) : null,
+      cert_thumbprint: cert?.thumbprint_sha256 || null,
+      cert_valid_until: cert?.validity?.not_after || null,
+      link: data?.data?.id ? `https://www.virustotal.com/gui/ip-address/${data.data.id}` : null,
+      raw: data,
+    };
+  }
+
+  if (iocType === 'domain') {
+    const cert = attrs.last_https_certificate || null;
+    const cats = attrs.categories ? Object.values(attrs.categories).slice(0, 3).join(', ') : null;
+    return {
+      ...base,
+      domain: data?.data?.id || '',
+      registrar: attrs.registrar || null,
+      categories: cats,
+      cert_subject_cn: cert?.subject?.CN || null,
+      cert_issuer_cn: cert?.issuer?.CN || null,
+      cert_valid_until: cert?.validity?.not_after || null,
+      link: data?.data?.id ? `https://www.virustotal.com/gui/domain/${data.data.id}` : null,
+      raw: data,
+    };
+  }
+
+  if (iocType === 'url') {
+    return {
+      ...base,
+      url: attrs.url || data?.data?.id || '',
+      finalUrl: attrs.last_final_url || null,
+      title: attrs.title || null,
+      categories: attrs.categories ? Object.values(attrs.categories).slice(0, 3).join(', ') : null,
+      link: `https://www.virustotal.com/gui/url/${data?.data?.id || ''}`,
+      raw: data,
+    };
+  }
+
+  if (iocType.startsWith('hash_')) {
+    return {
+      ...base,
+      md5: attrs.md5 || null,
+      sha1: attrs.sha1 || null,
+      sha256: attrs.sha256 || null,
+      sha512: attrs.sha512 || null,
+      name: attrs.meaningful_name || (attrs.names || [])[0] || null,
+      size: attrs.size != null ? `${(attrs.size / 1024).toFixed(1)} KB` : null,
+      fileType: attrs.type_description || attrs.magic || null,
+      signatureInfo: attrs.signature_info?.description || null,
+      firstSeen: attrs.first_submission_date
+        ? new Date(attrs.first_submission_date * 1000).toISOString().split('T')[0] : null,
+      link: attrs.sha256 ? `https://www.virustotal.com/gui/file/${attrs.sha256}` : null,
+      raw: data,
+    };
+  }
+
+  return { ...base, raw: data };
+}
+
+/* ── OTX parser ─────────────────────────────────────────────────────────── */
+function parseOTXResponse(data, iocType, iocValue) {
+  const pulseCount = data?.pulse_info?.count || 0;
+  const pulses = data?.pulse_info?.pulses || [];
+  let totalSubscribers = 0, maxIndicatorCount = 0;
+  const pulseAuthors = [], malwareFamilies = [], tags = [], adversaries = [];
+  for (const p of pulses) {
+    totalSubscribers += p.subscriber_count || 0;
+    if ((p.indicator_count || 0) > maxIndicatorCount) maxIndicatorCount = p.indicator_count;
+    if (p.author_name) pulseAuthors.push(p.author_name);
+  }
+  for (const p of pulses.slice(0, 5)) {
+    if (p.malware_families) malwareFamilies.push(...p.malware_families.map(f => f.display_name || f));
+    if (p.tags) tags.push(...p.tags.slice(0, 3));
+    if (p.adversary) adversaries.push(p.adversary);
+  }
+
+  const otxSection = { ip: 'ip', ipv6: 'ip', domain: 'domain', url: 'url' };
+  const linkBase = otxSection[iocType] || 'file';
+  const encVal = iocType === 'url' ? encodeURIComponent(iocValue) : iocValue;
+
+  return {
+    source: 'otx',
+    verdict: pulseCount >= 5 ? 'malicious' : pulseCount >= 1 ? 'suspicious' : 'benign',
+    pulseCount, scoreLabel: `${pulseCount} pulse${pulseCount !== 1 ? 's' : ''}`,
+    subscriberCount: totalSubscribers,
+    indicatorCount: maxIndicatorCount,
+    validation: (data?.validation || []).length > 0 ? 'Validated' : 'Unvalidated',
+    pulseSources: [...new Set(pulseAuthors)].slice(0, 5),
+    malwareFamilies: [...new Set(malwareFamilies)].slice(0, 5),
+    tags: [...new Set(tags)].slice(0, 8),
+    adversaries: [...new Set(adversaries)].slice(0, 3),
+    recentPulse: pulses[0]?.name || null,
+    link: `https://otx.alienvault.com/indicator/${linkBase}/${encVal}`,
     raw: data,
   };
 }
 
+/* ── AbuseIPDB parser ────────────────────────────────────────────────────── */
 function parseAbuseIPDBResponse(data) {
   const d = data?.data || {};
   const score = d.abuseConfidenceScore || 0;
@@ -139,39 +286,7 @@ function parseAbuseIPDBResponse(data) {
   };
 }
 
-function parseOTXIPResponse(data) {
-  const pulseCount = data?.pulse_info?.count || 0;
-  const pulses = data?.pulse_info?.pulses || [];
-  let totalSubscribers = 0, maxIndicatorCount = 0;
-  const pulseAuthors = [], malwareFamilies = [], tags = [], adversaries = [];
-  for (const p of pulses) {
-    totalSubscribers += p.subscriber_count || 0;
-    if ((p.indicator_count || 0) > maxIndicatorCount) maxIndicatorCount = p.indicator_count;
-    if (p.author_name) pulseAuthors.push(p.author_name);
-  }
-  for (const p of pulses.slice(0, 5)) {
-    if (p.malware_families) malwareFamilies.push(...p.malware_families.map(f => f.display_name || f));
-    if (p.tags) tags.push(...p.tags.slice(0, 3));
-    if (p.adversary) adversaries.push(p.adversary);
-  }
-  const validation = data?.validation || [];
-  return {
-    source: 'otx',
-    verdict: pulseCount >= 5 ? 'malicious' : pulseCount >= 1 ? 'suspicious' : 'benign',
-    pulseCount, scoreLabel: `${pulseCount} pulse${pulseCount !== 1 ? 's' : ''}`,
-    subscriberCount: totalSubscribers,
-    indicatorCount: maxIndicatorCount,
-    validation: validation.length > 0 ? 'Validated' : 'Unvalidated',
-    pulseSources: [...new Set(pulseAuthors)].slice(0, 5),
-    malwareFamilies: [...new Set(malwareFamilies)].slice(0, 5),
-    tags: [...new Set(tags)].slice(0, 8),
-    adversaries: [...new Set(adversaries)].slice(0, 3),
-    recentPulse: pulses[0]?.name || null,
-    link: `https://otx.alienvault.com/indicator/ip/${data?.indicator || ''}`,
-    raw: data,
-  };
-}
-
+/* ── URLScan parser ──────────────────────────────────────────────────────── */
 function parseURLScanResponse(data) {
   const results = data?.results || [];
   const total = data?.total || results.length;
@@ -186,6 +301,7 @@ function parseURLScanResponse(data) {
   return { source: 'urlscan', total, maliciousCount, recent, notFound: false, raw: data };
 }
 
+/* ── ThreatFox parser ────────────────────────────────────────────────────── */
 function parseThreatFoxResponse(data) {
   if (data?.query_status === 'no_result' || !data?.data?.length)
     return { source: 'threatfox', notFound: true, iocCount: 0, raw: data };
@@ -203,7 +319,39 @@ function parseThreatFoxResponse(data) {
   };
 }
 
-function parseURLhausHostResponse(data) {
+/* ── URLhaus parsers ─────────────────────────────────────────────────────── */
+function parseURLhausResponse(data, iocType) {
+  if (iocType === 'url') {
+    if (!data?.id || data?.query_status === 'no_results')
+      return { source: 'urlhaus', notFound: true, urlsCount: 0, raw: data };
+    return {
+      source: 'urlhaus',
+      urlsCount: 1,
+      onlineCount: data.url_status === 'online' ? 1 : 0,
+      threats: data.threat ? [data.threat] : [],
+      notFound: false,
+      tags: data.tags || [],
+      dateAdded: data.date_added?.split(' ')[0] || null,
+      raw: data,
+    };
+  }
+
+  if (iocType === 'hash_md5' || iocType === 'hash_sha256') {
+    if (data?.query_status !== 'ok')
+      return { source: 'urlhaus', notFound: true, urlsCount: 0, raw: data };
+    return {
+      source: 'urlhaus',
+      urlsCount: data.url_count || 0,
+      onlineCount: 0,
+      threats: data.signature ? [data.signature] : [],
+      notFound: false,
+      tags: data.tags || [],
+      dateAdded: data.firstseen?.split(' ')[0] || null,
+      raw: data,
+    };
+  }
+
+  /* host lookup (IP/IPv6/domain) */
   if (data?.query_status === 'no_results')
     return { source: 'urlhaus', notFound: true, urlsCount: 0, raw: data };
   const urls = data?.urls || [];
@@ -218,7 +366,24 @@ function parseURLhausHostResponse(data) {
   };
 }
 
-function parseMBTagResponse(data) {
+/* ── MalwareBazaar parsers ───────────────────────────────────────────────── */
+function parseMBResponse(data, iocType) {
+  if (iocType.startsWith('hash_')) {
+    if (data?.query_status !== 'ok' || !data?.data?.length)
+      return { source: 'malwarebazaar', notFound: true, count: 0, raw: data };
+    const item = data.data[0];
+    return {
+      source: 'malwarebazaar',
+      count: 1,
+      families: item.signature ? [item.signature] : [],
+      fileName: item.file_name || null,
+      fileType: item.file_type_mime || null,
+      firstSeen: item.first_seen?.split(' ')[0] || null,
+      notFound: false,
+      raw: data,
+    };
+  }
+  /* tag search (IP) */
   if (data?.query_status !== 'ok' || !data?.data?.length)
     return { source: 'malwarebazaar', notFound: true, count: 0, raw: data };
   const items = data.data || [];
@@ -230,6 +395,7 @@ function parseMBTagResponse(data) {
   };
 }
 
+/* ── HybridAnalysis parser ───────────────────────────────────────────────── */
 function parseHybridAnalysisResponse(data) {
   const results = data?.result || data?.results || [];
   if (!results.length) return { source: 'hybridanalysis', notFound: true, count: 0, raw: data };
@@ -244,6 +410,7 @@ function parseHybridAnalysisResponse(data) {
   };
 }
 
+/* ── Shodan parser ───────────────────────────────────────────────────────── */
 function parseShodanFullResponse(data) {
   const cves = Object.keys(data?.vulns || {});
   const ports = data?.ports || [];
@@ -262,6 +429,7 @@ function parseShodanFullResponse(data) {
   };
 }
 
+/* ── Error helpers ───────────────────────────────────────────────────────── */
 function vtHttpErr(s)  { return { source: 'virustotal',  error: { 404: 'Not found', 401: 'Unauthorized', 429: 'Rate limited', 503: 'API key not configured' }[s] || `HTTP ${s}` }; }
 function abHttpErr(s)  { return { source: 'abuseipdb',   error: { 401: 'Unauthorized', 429: 'Rate limited', 503: 'API key not configured' }[s] || `HTTP ${s}` }; }
 function otxHttpErr(s) { return { source: 'otx',         error: { 401: 'Unauthorized', 404: 'Not found', 429: 'Rate limited', 503: 'API key not configured' }[s] || `HTTP ${s}` }; }

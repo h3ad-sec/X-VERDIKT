@@ -19,72 +19,108 @@ function isPrivateV6(ip) {
   return l === '::1' || l.startsWith('fe80:') || l.startsWith('fc') || l.startsWith('fd');
 }
 
-function defang(raw) {
+function defangAll(raw) {
   return raw
+    .replace(/hxxps/gi, 'https')
+    .replace(/hxxp/gi, 'http')
     .replace(/\[\.\]/g, '.').replace(/\(\.\)/g, '.')
-    .replace(/\[:\]/g, ':').replace(/\s/g, '');
+    .replace(/\[dot\]/gi, '.').replace(/\(dot\)/gi, '.')
+    .replace(/\[:\]/g, ':')
+    .replace(/\[at\]/gi, '@');
 }
 
-function parseIPs(raw) {
+function parseIOCsWithMeta(raw) {
+  const text = defangAll(raw);
   const seen = new Set();
-  const results = [];
-  const text = defang(raw);
+  const iocs = [];
 
+  /* 1. Hashes — longest first so SHA512 claims tokens before SHA256/SHA1/MD5 */
+  for (const [re, type, label] of [
+    [/\b[0-9a-fA-F]{128}\b/g, 'hash_sha512', 'SHA-512'],
+    [/\b[0-9a-fA-F]{64}\b/g,  'hash_sha256', 'SHA-256'],
+    [/\b[0-9a-fA-F]{40}\b/g,  'hash_sha1',   'SHA-1'],
+    [/\b[0-9a-fA-F]{32}\b/g,  'hash_md5',    'MD5'],
+  ]) {
+    for (const m of text.matchAll(new RegExp(re.source, 'g'))) {
+      const v = m[0].toLowerCase();
+      if (!seen.has(v)) { seen.add(v); iocs.push({ value: v, type, label }); }
+    }
+  }
+
+  /* 2. URLs */
+  for (const m of text.matchAll(/https?:\/\/[^\s"'<>\[\]{}|\\^`]+/gi)) {
+    let v = m[0].replace(/[.,;:!?)\]>]+$/, '');
+    if (!seen.has(v)) { seen.add(v); iocs.push({ value: v, type: 'url', label: 'URL' }); }
+  }
+
+  /* 3. IPv4 */
   for (const m of text.matchAll(new RegExp(IPV4_RE.source, 'g'))) {
-    const ip = m[0];
-    if (!seen.has(ip)) {
-      seen.add(ip);
-      results.push({
-        value: ip, type: 'ip', baseType: 'ip', label: 'IPv4',
-        isPrivate: isPrivateV4(ip),
-        defanged: raw.includes('[.]') ? raw.split(/\s+/).find(t => defang(t) === ip && t !== ip) || null : null,
-      });
+    const v = m[0];
+    if (!seen.has(v)) {
+      seen.add(v);
+      iocs.push({ value: v, type: 'ip', label: 'IPv4', isPrivate: isPrivateV4(v) });
     }
   }
 
+  /* 4. IPv6 */
   for (const m of text.matchAll(new RegExp(IPV6_RE.source, 'g'))) {
-    const ip = m[0];
-    if (!seen.has(ip) && ip.includes(':') && ip.length > 6) {
-      seen.add(ip);
-      results.push({
-        value: ip, type: 'ipv6', baseType: 'ip', label: 'IPv6',
-        isPrivate: isPrivateV6(ip), defanged: null,
-      });
+    const v = m[0];
+    if (!seen.has(v) && v.includes(':') && v.length > 6) {
+      seen.add(v);
+      iocs.push({ value: v, type: 'ipv6', label: 'IPv6', isPrivate: isPrivateV6(v) });
     }
   }
 
-  return results;
-}
+  /* 5. Domains — after IPs so numeric-only dotted strings stay as IPs */
+  const domainRe = /\b(?:[a-z0-9](?:[a-z0-9\-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}\b/gi;
+  for (const m of text.matchAll(domainRe)) {
+    const v = m[0].toLowerCase();
+    if (seen.has(v)) continue;
+    const labels = v.split('.');
+    /* skip if all non-TLD labels are pure digits (version strings, stray IP fragments) */
+    if (labels.slice(0, -1).every(l => /^\d+$/.test(l))) continue;
+    seen.add(v);
+    iocs.push({ value: v, type: 'domain', label: 'Domain' });
+  }
 
-function parseIPsWithMeta(raw) {
-  const ips = parseIPs(raw);
-  return {
-    ips,
-    total: ips.length,
-    ipv4: ips.filter(i => i.type === 'ip').length,
-    ipv6: ips.filter(i => i.type === 'ipv6').length,
-    private: ips.filter(i => i.isPrivate).length,
+  const byType = {
+    ip:     iocs.filter(i => i.type === 'ip').length,
+    ipv6:   iocs.filter(i => i.type === 'ipv6').length,
+    domain: iocs.filter(i => i.type === 'domain').length,
+    url:    iocs.filter(i => i.type === 'url').length,
+    hash:   iocs.filter(i => i.type.startsWith('hash_')).length,
   };
+
+  return { iocs, total: iocs.length, byType, private: iocs.filter(i => i.isPrivate).length };
 }
 
-function parseIPsRealtime() {
+function parseIOCsRealtime() {
   const raw = document.getElementById('ip-input')?.value || '';
-  const meta = parseIPsWithMeta(raw);
-  const info = document.getElementById('ip-parsed-info');
-  const btn = document.getElementById('scan-btn');
+  const meta = parseIOCsWithMeta(raw);
+  const info = document.getElementById('ioc-parsed-info');
+  const btn  = document.getElementById('scan-btn');
+
   if (meta.total === 0) {
     if (info) info.innerHTML = '';
     if (btn) btn.disabled = true;
-    document.getElementById('ip-breakdown')?.style && (document.getElementById('ip-breakdown').style.display = 'none');
     return;
   }
-  const parts = [`<span>${meta.total}</span> IP${meta.total > 1 ? 's' : ''}`];
-  if (meta.ipv4 && meta.ipv6) parts.push(`${meta.ipv4} IPv4 · ${meta.ipv6} IPv6`);
-  else if (meta.ipv4) parts.push(`IPv4`);
-  else if (meta.ipv6) parts.push(`IPv6`);
+
+  const parts = [`<span>${meta.total}</span> IOC${meta.total > 1 ? 's' : ''}`];
+  const labels = [];
+  if (meta.byType.ip)     labels.push(`${meta.byType.ip} IPv4`);
+  if (meta.byType.ipv6)   labels.push(`${meta.byType.ipv6} IPv6`);
+  if (meta.byType.domain) labels.push(`${meta.byType.domain} Domain${meta.byType.domain > 1 ? 's' : ''}`);
+  if (meta.byType.url)    labels.push(`${meta.byType.url} URL${meta.byType.url > 1 ? 's' : ''}`);
+  if (meta.byType.hash)   labels.push(`${meta.byType.hash} Hash${meta.byType.hash > 1 ? 'es' : ''}`);
+  if (labels.length) parts.push(labels.join(' · '));
   if (meta.private) parts.push(`<span style="color:var(--yellow)">${meta.private} private</span>`);
+
   if (info) info.innerHTML = parts.join(' · ');
   if (btn) btn.disabled = false;
 }
+
+/* alias for oninput handlers already wired in HTML */
+function parseIPsRealtime() { parseIOCsRealtime(); }
 
 function getInputText() { return document.getElementById('ip-input')?.value || ''; }

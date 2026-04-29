@@ -3,6 +3,17 @@ let currentVerdictFilter = 'all';
 let currentTypeFilter    = 'all';
 let currentSearch        = '';
 
+const TYPE_BADGES = {
+  ip:          '<span class="type-badge type-ip">IPv4</span>',
+  ipv6:        '<span class="type-badge type-ipv6">IPv6</span>',
+  domain:      '<span class="type-badge type-domain">Domain</span>',
+  url:         '<span class="type-badge type-url">URL</span>',
+  hash_md5:    '<span class="type-badge type-hash">MD5</span>',
+  hash_sha1:   '<span class="type-badge type-hash">SHA-1</span>',
+  hash_sha256: '<span class="type-badge type-hash">SHA-256</span>',
+  hash_sha512: '<span class="type-badge type-hash">SHA-512</span>',
+};
+
 /* ── Helpers ─────────────────────────────────────────────────────────────── */
 function escapeHtml(s) {
   if (s == null) return '';
@@ -41,20 +52,22 @@ function renderResultRows(results) {
 }
 
 function buildRow(entry, i) {
-  const { ip, verdict, action, score, vtPts, abPts, otxPts, confidence, reasons, flags, done } = entry;
-  const privateBadge = ip.isPrivate ? '<div class="ioc-private-badge">PRIVATE</div>' : '';
-  const defangBadge  = ip.defanged  ? '<div class="ioc-defang-note">defanged</div>' : '';
-  const ipv6Badge    = ip.type === 'ipv6' ? '<span class="type-badge type-ipv6">IPv6</span>' : '<span class="type-badge type-ip">IPv4</span>';
+  const { ioc, verdict, action, score, vtPts, abPts, otxPts, confidence, flags, done } = entry;
+  const privateBadge = ioc.isPrivate ? '<div class="ioc-private-badge">PRIVATE</div>' : '';
+  const typeBadge    = TYPE_BADGES[ioc.type] || `<span class="type-badge">${escapeHtml(ioc.label)}</span>`;
+  /* truncate long values (URLs/hashes) for the table cell */
+  const displayVal = ioc.type === 'url' || ioc.type.startsWith('hash_')
+    ? truncate(ioc.value, 48) : ioc.value;
 
-  return `<tr data-row="${i}" data-verdict="${verdict||'pending'}" data-action="${action||''}" data-ip="${escapeAttr(ip.value)}">
+  return `<tr data-row="${i}" data-verdict="${verdict||'pending'}" data-action="${action||''}" data-type="${escapeAttr(ioc.type)}" data-ioc="${escapeAttr(ioc.value)}">
     <td class="td-ioc">
       <div class="ioc-val-wrap">
-        <span class="ioc-val">${escapeHtml(ip.value)}</span>
-        <button class="ioc-copy-btn" onclick="copyToClipboard('${escapeAttr(ip.value)}')" title="Copy">⎘</button>
+        <span class="ioc-val" title="${escapeAttr(ioc.value)}">${escapeHtml(displayVal)}</span>
+        <button class="ioc-copy-btn" onclick="copyToClipboard('${escapeAttr(ioc.value)}')" title="Copy">⎘</button>
       </div>
-      ${privateBadge}${defangBadge}
+      ${privateBadge}
     </td>
-    <td>${ipv6Badge}</td>
+    <td>${typeBadge}</td>
     <td id="v-${i}">${buildVerdictCell(verdict, score, confidence, done)}</td>
     <td id="vt-${i}">${buildSourceScoreCell('vt', vtPts, entry.vt, done)}</td>
     <td id="ab-${i}">${buildSourceScoreCell('ab', abPts, entry.ab, done)}</td>
@@ -109,7 +122,7 @@ function buildFlagsCell(flags, done) {
   if (!flags?.length) return '<span style="color:var(--muted);font-size:11px">—</span>';
   const flagColors = {
     'TF:C2': 'var(--tf)', 'UH:URLS': 'var(--uh)', 'HA:SANDBOX': 'var(--ha)',
-    'SH:CVE': 'var(--sh)', 'SH:TAG': 'var(--sh)',
+    'MB:HIT': 'var(--mb)', 'SH:CVE': 'var(--sh)', 'SH:TAG': 'var(--sh)',
   };
   return flags.map(f => {
     const col = flagColors[f] || (f.startsWith('US:') ? 'var(--us)' : 'var(--muted)');
@@ -155,7 +168,7 @@ function renderSummary(results) {
   }
   const avgScore = done.length ? Math.round(scoreSum / done.length) : 0;
   document.getElementById('summary-strip').innerHTML = `
-    <div class="summary-card sc-total"><span class="sc-icon">📋</span><div><div class="summary-num">${results.length}</div><div class="summary-lbl">TOTAL IPs</div></div></div>
+    <div class="summary-card sc-total"><span class="sc-icon">📋</span><div><div class="summary-num">${results.length}</div><div class="summary-lbl">TOTAL IOCs</div></div></div>
     <div class="summary-card sc-malicious"><span class="sc-icon">🔴</span><div><div class="summary-num">${counts.malicious}</div><div class="summary-lbl">MALICIOUS</div></div></div>
     <div class="summary-card sc-suspicious"><span class="sc-icon">🟡</span><div><div class="summary-num">${counts.suspicious}</div><div class="summary-lbl">SUSPICIOUS</div></div></div>
     <div class="summary-card sc-benign"><span class="sc-icon">🟢</span><div><div class="summary-num">${counts.benign}</div><div class="summary-lbl">BENIGN</div></div></div>
@@ -172,15 +185,25 @@ function filterResults(f, btn) {
   applyFilters();
 }
 
+function filterByType(t, btn) {
+  currentTypeFilter = t;
+  document.querySelectorAll('.type-filter[data-tfilter]').forEach(b => b.classList.remove('active'));
+  if (btn) btn.classList.add('active');
+  applyFilters();
+}
+
 function searchResults(val) { currentSearch = val.toLowerCase().trim(); applyFilters(); }
 
 function applyFilters() {
   document.querySelectorAll('#results-body tr').forEach(row => {
-    const v = row.dataset.verdict || '';
-    const ip = (row.dataset.ip || '').toLowerCase();
+    const v  = row.dataset.verdict || '';
+    const tp = row.dataset.type || '';
+    const ioc = (row.dataset.ioc || '').toLowerCase();
     const matchV = currentVerdictFilter === 'all' || v === currentVerdictFilter;
-    const matchS = !currentSearch || ip.includes(currentSearch);
-    row.classList.toggle('hidden', !(matchV && matchS));
+    const matchT = currentTypeFilter === 'all' || tp === currentTypeFilter
+                   || (currentTypeFilter === 'hash' && tp.startsWith('hash_'));
+    const matchS = !currentSearch || ioc.includes(currentSearch);
+    row.classList.toggle('hidden', !(matchV && matchT && matchS));
   });
 }
 
@@ -214,12 +237,16 @@ function closeModal() { document.getElementById('modal-overlay')?.classList.remo
 function buildModalTitle(entry) {
   const vMap = { malicious: 'var(--red)', suspicious: 'var(--yellow)', benign: 'var(--accent)', unknown: 'var(--muted)' };
   const col = vMap[entry.verdict] || 'var(--muted)';
-  return `<span style="color:${col}">${escapeHtml(entry.ip.value)}</span>
-    <span style="color:var(--muted);font-size:11px;margin-left:12px">${entry.ip.label}</span>`;
+  const displayVal = entry.ioc.type === 'url' || entry.ioc.type.startsWith('hash_')
+    ? truncate(entry.ioc.value, 60) : entry.ioc.value;
+  return `<span style="color:${col}" title="${escapeAttr(entry.ioc.value)}">${escapeHtml(displayVal)}</span>
+    <span style="color:var(--muted);font-size:11px;margin-left:12px">${escapeHtml(entry.ioc.label)}</span>`;
 }
 
 function buildModalContent(entry) {
-  const { vt, ab, otx, urlscan, threatfox, urlhaus, mb, ha, shodan, score, vtPts, abPts, otxPts, verdict, confidence, action, reasons } = entry;
+  const { ioc, vt, ab, otx, urlscan, threatfox, urlhaus, mb, ha, shodan, score, vtPts, abPts, otxPts, verdict, confidence, action, reasons } = entry;
+  const iocType = ioc.type;
+  const iocIsIP = iocType === 'ip' || iocType === 'ipv6';
   const vMap = { malicious: ['var(--red)','🔴 MALICIOUS'], suspicious: ['var(--yellow)','🟡 SUSPICIOUS'], benign: ['var(--accent)','🟢 BENIGN'], unknown: ['var(--muted)','⚪ UNKNOWN'] };
   const aMap = { block: ['var(--red)','🚫 BLOCK'], investigate: ['var(--yellow)','🔍 INVESTIGATE'], allow: ['var(--accent)','✅ ALLOW'], monitor: ['var(--muted)','⏳ MONITOR'] };
   const [vcol, vlabel] = vMap[verdict] || vMap.unknown;
@@ -252,23 +279,24 @@ function buildModalContent(entry) {
   </div>`);
 
   /* Score breakdown */
+  const maxNote = iocIsIP ? 'VT(40) + AbuseIPDB(40) + OTX(20)' : 'VT(40) + OTX(20) → normalized ×100/60';
   parts.push(`<div class="sbd-section">
     <div class="sbd-label">SCORE BREAKDOWN</div>
     <table class="sbd-table">
       <thead><tr><th>SOURCE</th><th>PTS</th><th>MAX</th><th style="min-width:100px">CONTRIBUTION</th><th>SIGNAL</th></tr></thead>
       <tbody>
         ${buildSBDRow('VIRUSTOTAL', vtPts, 40, 'var(--vt)', vt ? (vt.error ? 'Error: '+vt.error : vt.skipped ? 'Skipped' : `${vt.malicious||0}/${vt.total||0} engines`) : '—')}
-        ${buildSBDRow('ABUSEIPDB', abPts, 40, 'var(--ab)', ab ? (ab.error ? 'Error: '+ab.error : ab.skipped ? 'Skipped' : `${ab.score||0}% confidence`) : '—')}
+        ${buildSBDRow('ABUSEIPDB', abPts, 40, 'var(--ab)', ab ? (ab.error ? 'Error: '+ab.error : ab.skipped ? ab.reason || 'Skipped' : `${ab.score||0}% confidence`) : '—')}
         ${buildSBDRow('OTX', otxPts, 20, 'var(--otx)', otx ? (otx.error ? 'Error: '+otx.error : otx.skipped ? 'Skipped' : `${otx.pulseCount||0} pulses`) : '—')}
       </tbody>
-      <tfoot><tr class="sbd-total"><td>TOTAL</td><td><strong style="color:var(--accent)">${score}</strong></td><td>100</td><td colspan="2" style="color:var(--muted);font-size:11px">VT(40) + AbuseIPDB(40) + OTX(20)</td></tr></tfoot>
+      <tfoot><tr class="sbd-total"><td>TOTAL</td><td><strong style="color:var(--accent)">${score}</strong></td><td>100</td><td colspan="2" style="color:var(--muted);font-size:11px">${maxNote}</td></tr></tfoot>
     </table>
   </div>`);
 
   /* Mandatory 3-column intel */
   parts.push(`<div class="modal-intel-grid">
-    ${buildVTBlock(vt)}
-    ${buildAbuseIPDBBlock(ab)}
+    ${buildVTBlock(vt, iocType)}
+    ${buildAbuseIPDBBlock(ab, iocType)}
     ${buildOTXBlock(otx)}
   </div>`);
 
@@ -305,43 +333,116 @@ function kv(k, v, col) {
   return `<div class="modal-k">${escapeHtml(k)}</div><div class="modal-v"${colorClass}>${escapeHtml(val)}</div>`;
 }
 
-function buildVTBlock(vt) {
+function buildVTBlock(vt, iocType) {
   if (!vt || vt.skipped || vt.error) {
     const msg = vt?.error || vt?.reason || 'Not available';
     return `<div class="intel-block"><div class="intel-block-title" style="color:var(--vt)">VIRUSTOTAL</div><div class="intel-na">${escapeHtml(msg)}</div></div>`;
   }
   const scoreColor = vt.malicious > 0 ? 'var(--red)' : vt.suspicious > 0 ? 'var(--yellow)' : 'var(--accent)';
   const lastStats = `${vt.malicious} mal · ${vt.suspicious} sus · ${vt.harmless} harm · ${vt.undetected} undet · ${vt.total} total`;
+  const linkHtml = vt.link ? ` <a href="${escapeAttr(vt.link)}" target="_blank" class="modal-link">↗</a>` : '';
+
+  /* IP / IPv6 */
+  if (iocType === 'ip' || iocType === 'ipv6') {
+    return `<div class="intel-block">
+      <div class="intel-block-title" style="color:var(--vt)">VIRUSTOTAL${linkHtml}</div>
+      <div class="modal-kv-grid">
+        ${kv('IP', vt.ip)}
+        ${kv('ASN', vt.asn != null ? `AS${vt.asn}` : null)}
+        ${kv('AS Owner', vt.as_owner)}
+        ${kv('Country', vt.country)}
+        ${kv('Reputation', vt.reputation != null ? String(vt.reputation) : null, vt.reputation < 0 ? 'var(--red)' : vt.reputation > 0 ? 'var(--accent)' : null)}
+        ${kv('Detections', vt.total > 0 ? lastStats : 'No engines ran', scoreColor)}
+        ${kv('Last Scan', vt.last_analysis_date)}
+        ${kv('Network', vt.network)}
+        ${kv('JARM', vt.jarm ? truncate(vt.jarm, 32) : null)}
+      </div>
+      ${vt.tags?.length ? `<div class="modal-tags">${vt.tags.map(t => `<span class="modal-tag">${escapeHtml(t)}</span>`).join('')}</div>` : ''}
+      ${(vt.cert_subject_cn || vt.cert_issuer_cn) ? `
+      <div class="intel-sub-label">TLS CERTIFICATE</div>
+      <div class="modal-kv-grid">
+        ${kv('Subject CN', vt.cert_subject_cn)}
+        ${kv('Issuer CN', vt.cert_issuer_cn)}
+        ${kv('Self-signed', vt.cert_self_signed)}
+        ${kv('Valid Until', vt.cert_valid_until)}
+        ${kv('SHA-256', vt.cert_thumbprint ? truncate(vt.cert_thumbprint, 40) : null)}
+      </div>` : ''}
+    </div>`;
+  }
+
+  /* Domain */
+  if (iocType === 'domain') {
+    return `<div class="intel-block">
+      <div class="intel-block-title" style="color:var(--vt)">VIRUSTOTAL${linkHtml}</div>
+      <div class="modal-kv-grid">
+        ${kv('Domain', vt.domain)}
+        ${kv('Registrar', vt.registrar)}
+        ${kv('Categories', vt.categories)}
+        ${kv('Reputation', vt.reputation != null ? String(vt.reputation) : null, vt.reputation < 0 ? 'var(--red)' : null)}
+        ${kv('Detections', vt.total > 0 ? lastStats : 'No engines ran', scoreColor)}
+        ${kv('Last Scan', vt.last_analysis_date)}
+      </div>
+      ${vt.tags?.length ? `<div class="modal-tags">${vt.tags.map(t => `<span class="modal-tag">${escapeHtml(t)}</span>`).join('')}</div>` : ''}
+      ${(vt.cert_subject_cn || vt.cert_issuer_cn) ? `
+      <div class="intel-sub-label">TLS CERTIFICATE</div>
+      <div class="modal-kv-grid">
+        ${kv('Subject CN', vt.cert_subject_cn)}
+        ${kv('Issuer CN', vt.cert_issuer_cn)}
+        ${kv('Valid Until', vt.cert_valid_until)}
+      </div>` : ''}
+    </div>`;
+  }
+
+  /* URL */
+  if (iocType === 'url') {
+    return `<div class="intel-block">
+      <div class="intel-block-title" style="color:var(--vt)">VIRUSTOTAL${linkHtml}</div>
+      <div class="modal-kv-grid">
+        ${kv('Detections', vt.total > 0 ? lastStats : 'No engines ran', scoreColor)}
+        ${kv('Last Scan', vt.last_analysis_date)}
+        ${kv('Title', vt.title ? truncate(vt.title, 48) : null)}
+        ${kv('Final URL', vt.finalUrl ? truncate(vt.finalUrl, 48) : null)}
+        ${kv('Categories', vt.categories)}
+        ${kv('Reputation', vt.reputation != null ? String(vt.reputation) : null, vt.reputation < 0 ? 'var(--red)' : null)}
+      </div>
+      ${vt.tags?.length ? `<div class="modal-tags">${vt.tags.map(t => `<span class="modal-tag">${escapeHtml(t)}</span>`).join('')}</div>` : ''}
+    </div>`;
+  }
+
+  /* Hash */
+  if (iocType.startsWith('hash_')) {
+    return `<div class="intel-block">
+      <div class="intel-block-title" style="color:var(--vt)">VIRUSTOTAL${linkHtml}</div>
+      <div class="modal-kv-grid">
+        ${kv('Detections', vt.total > 0 ? lastStats : 'No engines ran', scoreColor)}
+        ${kv('File Name', vt.name)}
+        ${kv('File Type', vt.fileType)}
+        ${kv('Size', vt.size)}
+        ${kv('Signature', vt.signatureInfo)}
+        ${kv('First Seen', vt.firstSeen)}
+        ${kv('Last Scan', vt.last_analysis_date)}
+        ${kv('MD5', vt.md5 ? truncate(vt.md5, 40) : null)}
+        ${kv('SHA-1', vt.sha1 ? truncate(vt.sha1, 40) : null)}
+        ${kv('SHA-256', vt.sha256 ? truncate(vt.sha256, 44) : null)}
+      </div>
+      ${vt.tags?.length ? `<div class="modal-tags">${vt.tags.map(t => `<span class="modal-tag">${escapeHtml(t)}</span>`).join('')}</div>` : ''}
+    </div>`;
+  }
+
+  /* Fallback */
   return `<div class="intel-block">
-    <div class="intel-block-title" style="color:var(--vt)">VIRUSTOTAL ${vt.link ? `<a href="${escapeAttr(vt.link)}" target="_blank" class="modal-link">↗</a>` : ''}</div>
-    <div class="modal-kv-grid">
-      ${kv('IP', vt.ip)}
-      ${kv('ASN', vt.asn != null ? `AS${vt.asn}` : null)}
-      ${kv('AS Owner', vt.as_owner)}
-      ${kv('Country', vt.country)}
-      ${kv('Reputation', vt.reputation != null ? String(vt.reputation) : null, vt.reputation < 0 ? 'var(--red)' : vt.reputation > 0 ? 'var(--accent)' : null)}
-      ${kv('Detections', vt.total > 0 ? lastStats : 'No engines ran', scoreColor)}
-      ${kv('Last Scan', vt.last_analysis_date)}
-      ${kv('Network', vt.network)}
-      ${kv('JARM', vt.jarm ? truncate(vt.jarm, 32) : null)}
-    </div>
-    ${vt.tags?.length ? `<div class="modal-tags">${vt.tags.map(t => `<span class="modal-tag">${escapeHtml(t)}</span>`).join('')}</div>` : ''}
-    ${(vt.cert_subject_cn || vt.cert_issuer_cn) ? `
-    <div class="intel-sub-label">TLS CERTIFICATE</div>
-    <div class="modal-kv-grid">
-      ${kv('Subject CN', vt.cert_subject_cn)}
-      ${kv('Issuer CN', vt.cert_issuer_cn)}
-      ${kv('Self-signed', vt.cert_self_signed)}
-      ${kv('Valid Until', vt.cert_valid_until)}
-      ${kv('SHA-256', vt.cert_thumbprint ? truncate(vt.cert_thumbprint, 40) : null)}
-    </div>` : ''}
+    <div class="intel-block-title" style="color:var(--vt)">VIRUSTOTAL${linkHtml}</div>
+    <div class="modal-kv-grid">${kv('Detections', vt.total > 0 ? lastStats : 'No engines ran', scoreColor)}</div>
   </div>`;
 }
 
-function buildAbuseIPDBBlock(ab) {
-  if (!ab || ab.skipped || ab.error) {
-    const msg = ab?.error || ab?.reason || 'Not available';
+function buildAbuseIPDBBlock(ab, iocType) {
+  if (!ab || ab.error) {
+    const msg = ab?.error || 'Not available';
     return `<div class="intel-block"><div class="intel-block-title" style="color:var(--ab)">ABUSEIPDB</div><div class="intel-na">${escapeHtml(msg)}</div></div>`;
+  }
+  if (ab.skipped) {
+    return `<div class="intel-block"><div class="intel-block-title" style="color:var(--ab)">ABUSEIPDB</div><div class="intel-na" style="color:var(--muted)">${escapeHtml(ab.reason || 'IP only')}</div></div>`;
   }
   const scoreCol = ab.score >= 75 ? 'var(--red)' : ab.score >= 25 ? 'var(--yellow)' : 'var(--accent)';
   return `<div class="intel-block">
@@ -378,7 +479,7 @@ function buildOTXBlock(otx) {
       ${kv('Validation', otx.validation)}
       ${kv('Recent Pulse', otx.recentPulse ? truncate(otx.recentPulse, 44) : null)}
     </div>
-    ${otx.pulseSources?.length ? `<div class="intel-sub-label">PULSE SOURCES <span style="color:var(--muted)">(signal quality)</span></div><div class="modal-tags">${otx.pulseSources.map(s => `<span class="modal-tag">${escapeHtml(s)}</span>`).join('')}</div>` : ''}
+    ${otx.pulseSources?.length ? `<div class="intel-sub-label">PULSE SOURCES</div><div class="modal-tags">${otx.pulseSources.map(s => `<span class="modal-tag">${escapeHtml(s)}</span>`).join('')}</div>` : ''}
     ${otx.malwareFamilies?.length ? `<div class="intel-sub-label">MALWARE FAMILIES</div><div class="modal-tags">${otx.malwareFamilies.map(f => `<span class="modal-tag" style="color:var(--red);border-color:rgba(255,59,92,.3)">${escapeHtml(f)}</span>`).join('')}</div>` : ''}
     ${otx.adversaries?.length ? `<div class="intel-sub-label">ADVERSARIES</div><div class="modal-tags">${otx.adversaries.map(a => `<span class="modal-tag" style="color:var(--yellow)">${escapeHtml(a)}</span>`).join('')}</div>` : ''}
   </div>`;
@@ -426,7 +527,7 @@ function buildThreatFoxContent(tf) {
   if (tf.maxConfidence) lines.push(`<div class="supp-kv"><span>Confidence</span><span>${tf.maxConfidence}%</span></div>`);
   if (tf.firstSeen) lines.push(`<div class="supp-kv"><span>First Seen</span><span>${tf.firstSeen}</span></div>`);
   if (tf.lastSeen)  lines.push(`<div class="supp-kv"><span>Last Seen</span><span>${tf.lastSeen}</span></div>`);
-  if (tf.threatTypes?.length)    lines.push(`<div class="supp-kv"><span>Threat Type</span><span>${tf.threatTypes.join(', ')}</span></div>`);
+  if (tf.threatTypes?.length)     lines.push(`<div class="supp-kv"><span>Threat Type</span><span>${tf.threatTypes.join(', ')}</span></div>`);
   if (tf.malwareFamilies?.length) lines.push(`<div class="supp-kv"><span>Malware</span><span style="color:var(--red)">${tf.malwareFamilies.slice(0,3).join(', ')}</span></div>`);
   return lines.join('');
 }
@@ -455,12 +556,17 @@ function buildHAContent(ha) {
 }
 
 function buildMBContent(mb) {
-  if (!mb || mb.skipped) return `<div class="intel-na">${escapeHtml(mb?.reason || 'No IP endpoint')}</div>`;
+  if (!mb || mb.skipped) return `<div class="intel-na">${escapeHtml(mb?.reason || 'Skipped')}</div>`;
   if (mb.error) return `<div class="intel-na">Error: ${escapeHtml(mb.error)}</div>`;
-  if (mb.notFound || !mb.count) return `<div class="intel-na" style="color:var(--accent)">No tag matches</div>`;
-  const lines = [`<div class="supp-kv"><span>Tag Hits</span><span>${mb.count}</span></div>`];
+  if (mb.notFound || !mb.count) return `<div class="intel-na" style="color:var(--accent)">Not found</div>`;
+  const lines = [
+    mb.fileName ? `<div class="supp-kv"><span>File Name</span><span>${escapeHtml(mb.fileName)}</span></div>` : '',
+    `<div class="supp-kv"><span>Samples</span><span style="color:var(--red)">${mb.count}</span></div>`,
+  ];
+  if (mb.fileType) lines.push(`<div class="supp-kv"><span>File Type</span><span>${escapeHtml(mb.fileType)}</span></div>`);
   if (mb.families?.length) lines.push(`<div class="supp-kv"><span>Families</span><span style="color:var(--red)">${mb.families.join(', ')}</span></div>`);
-  return lines.join('');
+  if (mb.firstSeen) lines.push(`<div class="supp-kv"><span>First Seen</span><span>${mb.firstSeen}</span></div>`);
+  return lines.filter(Boolean).join('');
 }
 
 /* ── Results meta ────────────────────────────────────────────────────────── */
@@ -470,60 +576,11 @@ function updateResultsMeta(results) {
   if (el) el.innerHTML = `<span>${done}</span> / ${results.length} analyzed`;
 }
 
-/* ── Key save/load ───────────────────────────────────────────────────────── */
-function saveKeys() {
-  ['vt','ab','otx','us','ha','shodan','abch'].forEach(k => {
-    const el = document.getElementById(`${k}-key`);
-    if (el) localStorage.setItem(`xv_${k}_key`, el.value.trim());
-  });
-  const paid = document.getElementById('vt-paid');
-  if (paid) localStorage.setItem('xv_vt_paid', paid.checked ? '1' : '0');
-  const msg = document.getElementById('key-saved-msg');
-  if (msg) { msg.textContent = 'Saved'; msg.classList.add('show'); setTimeout(() => msg.classList.remove('show'), 2000); }
-}
-
-function clearKeys() {
-  ['vt','ab','otx','us','ha','shodan','abch'].forEach(k => {
-    const el = document.getElementById(`${k}-key`);
-    if (el) el.value = '';
-    localStorage.removeItem(`xv_${k}_key`);
-  });
-  localStorage.removeItem('xv_vt_paid');
-  updateStatusDots();
-}
-
-function loadSavedKeys() {
-  ['vt','ab','otx','us','ha','shodan','abch'].forEach(k => {
-    const el = document.getElementById(`${k}-key`);
-    if (el) el.value = localStorage.getItem(`xv_${k}_key`) || '';
-  });
-  const paid = document.getElementById('vt-paid');
-  if (paid) paid.checked = localStorage.getItem('xv_vt_paid') === '1';
-}
-
-function updateStatusDots() {
-  const dotMap = {
-    'vt-status': 'vt', 'ab-status': 'ab', 'otx-status': 'otx',
-    'us-status': 'us', 'ha-status': 'ha', 'sh-status': 'shodan',
-  };
-  for (const [id, key] of Object.entries(dotMap)) {
-    const el = document.getElementById(id);
-    if (!el) continue;
-    const dot = el.querySelector('.hstatus-dot');
-    if (dot) {
-      const active = !!localStorage.getItem(`xv_${key}_key`);
-      dot.className = active ? 'hstatus-dot on' : 'hstatus-dot off';
-    }
-  }
-  const tfDot = document.getElementById('tf-status')?.querySelector('.hstatus-dot');
-  const uhDot = document.getElementById('uh-status')?.querySelector('.hstatus-dot');
-  const mbDot = document.getElementById('mb-status')?.querySelector('.hstatus-dot');
-  const shDot = document.getElementById('sh-status')?.querySelector('.hstatus-dot');
-  if (tfDot) tfDot.className = 'hstatus-dot on';
-  if (uhDot) uhDot.className = 'hstatus-dot on';
-  if (mbDot) mbDot.className = 'hstatus-dot on';
-  if (shDot && !localStorage.getItem('xv_shodan_key')) shDot.className = 'hstatus-dot on';
-}
+/* ── Key save/load (no-ops — panel removed, kept for null safety) ─────────── */
+function saveKeys() {}
+function clearKeys() {}
+function loadSavedKeys() {}
+function updateStatusDots() {}
 
 function toggleKey(id) {
   const el = document.getElementById(id);
@@ -550,14 +607,17 @@ function switchInputTab(tab, btn) {
   if (pane) pane.classList.add('active');
 }
 
-function scanSingleIP() {
+function scanSingleIOC() {
   const input = document.getElementById('single-ip-input');
   const val = input?.value.trim();
   if (!val) return;
   document.getElementById('ip-input').value = val;
-  parseIPsRealtime();
+  parseIOCsRealtime();
   startScan();
   input.value = '';
 }
+
+/* alias kept for any stale references */
+function scanSingleIP() { scanSingleIOC(); }
 
 function updateVTPaidUI() {}

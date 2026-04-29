@@ -13,7 +13,8 @@ export default async function handler(req, res) {
   if (!path) return res.status(400).json({ error: 'Missing path parameter' });
 
   const decodedPath = decodeURIComponent(path);
-  if (!decodedPath.startsWith('/api/v3/ip_addresses/')) {
+  const allowed = ['/api/v3/ip_addresses/', '/api/v3/domains/', '/api/v3/urls/', '/api/v3/files/'];
+  if (!allowed.some(p => decodedPath.startsWith(p))) {
     return res.status(400).json({ error: 'Endpoint not allowed' });
   }
 

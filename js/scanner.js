@@ -39,10 +39,10 @@ async function startScan() {
   const raw = getInputText();
   if (!raw?.trim()) return;
 
-  const { ips } = parseIPsWithMeta(raw);
-  if (!ips.length) { showToast('No valid IPs detected', 'error'); return; }
+  const { iocs } = parseIOCsWithMeta(raw);
+  if (!iocs.length) { showToast('No valid IOCs detected', 'error'); return; }
 
-  const privateCount = ips.filter(i => i.isPrivate).length;
+  const privateCount = iocs.filter(i => i.isPrivate).length;
   if (privateCount > 0)
     showToast(`${privateCount} private IP${privateCount > 1 ? 's' : ''} detected — will skip external queries`, 'warning');
 
@@ -51,9 +51,9 @@ async function startScan() {
 
   isScanning = true; stopRequested = false; scanResults = []; totalScanned = 0;
 
-  for (const ip of ips) {
+  for (const ioc of iocs) {
     scanResults.push({
-      ip, vt: null, ab: null, otx: null,
+      ioc, vt: null, ab: null, otx: null,
       urlscan: null, threatfox: null, urlhaus: null,
       mb: null, ha: null, shodan: null,
       verdict: null, confidence: null, action: null,
@@ -72,10 +72,10 @@ async function startScan() {
   renderResultRows(scanResults);
   renderSummary(scanResults);
 
-  for (let i = 0; i < ips.length; i++) {
+  for (let i = 0; i < iocs.length; i++) {
     if (stopRequested) break;
-    const ip = ips[i], entry = scanResults[i];
-    updateProgress(i, ips.length, ip.value);
+    const ioc = iocs[i], entry = scanResults[i];
+    updateProgress(i, iocs.length, ioc.value);
     updateRowLoading(i);
     await runParallelScan(entry);
     const scored = scoreEntry(entry);
@@ -87,21 +87,26 @@ async function startScan() {
   }
 
   isScanning = false;
-  updateProgress(totalScanned, ips.length, stopRequested ? 'Stopped' : 'Complete');
+  updateProgress(totalScanned, iocs.length, stopRequested ? 'Stopped' : 'Complete');
   setScanBtnState('idle');
   setTimeout(() => { document.getElementById('progress-container').style.display = 'none'; }, 2000);
+  const n = iocs.length;
   showToast(
     stopRequested
-      ? `Stopped — ${totalScanned} IPs analyzed`
-      : `X-VERDIKT complete — ${ips.length} IPs analyzed`,
+      ? `Stopped — ${totalScanned} IOC${totalScanned !== 1 ? 's' : ''} analyzed`
+      : `X-VERDIKT complete — ${n} IOC${n !== 1 ? 's' : ''} analyzed`,
     'success'
   );
 }
 
 async function runParallelScan(entry) {
-  const { ip } = entry;
+  const { ioc } = entry;
+  const t = ioc.type;
+  const isIP   = t === 'ip' || t === 'ipv6';
+  const isHash = t.startsWith('hash_');
+  const isDomOrUrl = t === 'domain' || t === 'url';
 
-  if (ip.isPrivate) {
+  if (ioc.isPrivate) {
     const skip = s => ({ source: s, skipped: true, reason: 'Private IP — skipped' });
     entry.vt = skip('virustotal'); entry.ab = skip('abuseipdb'); entry.otx = skip('otx');
     entry.urlscan = skip('urlscan'); entry.threatfox = skip('threatfox');
@@ -112,19 +117,45 @@ async function runParallelScan(entry) {
 
   const vtP = (async () => {
     await VtBucket.acquire();
-    return fetchWithRetry(sig => API.virusTotal(ip, sig)).catch(e => ({ source: 'virustotal', error: e.message }));
+    return fetchWithRetry(sig => API.virusTotal(ioc, sig)).catch(e => ({ source: 'virustotal', error: e.message }));
   })();
 
-  const abP  = fetchWithRetry(sig => API.abuseIPDB(ip, sig)).catch(e => ({ source: 'abuseipdb', error: e.message }));
-  const otxP = fetchWithRetry(sig => API.otx(ip, sig)).catch(e => ({ source: 'otx', error: e.message }));
-  const usP  = fetchWithRetry(sig => API.urlscan(ip, sig)).catch(e => ({ source: 'urlscan', error: e.message }));
-  const tfP  = fetchWithRetry(sig => API.threatfox(ip, sig)).catch(e => ({ source: 'threatfox', error: e.message }));
-  const uhP  = fetchWithRetry(sig => API.urlhaus(ip, sig)).catch(e => ({ source: 'urlhaus', error: e.message }));
-  const mbP  = fetchWithRetry(sig => API.malwarebazaar(ip, sig)).catch(e => ({ source: 'malwarebazaar', error: e.message }));
-  const haP  = fetchWithRetry(sig => API.hybridanalysis(ip, sig)).catch(e => ({ source: 'hybridanalysis', error: e.message }));
-  const shP  = ip.type === 'ipv6'
-    ? Promise.resolve({ source: 'shodan', skipped: true, reason: 'IPv4 only' })
-    : fetchWithRetry(sig => API.shodan(ip, sig)).catch(e => ({ source: 'shodan', error: e.message }));
+  /* AbuseIPDB: IP/IPv6 only */
+  const abP = isIP
+    ? fetchWithRetry(sig => API.abuseIPDB(ioc, sig)).catch(e => ({ source: 'abuseipdb', error: e.message }))
+    : Promise.resolve({ source: 'abuseipdb', skipped: true, reason: 'IP only' });
+
+  const otxP = fetchWithRetry(sig => API.otx(ioc, sig)).catch(e => ({ source: 'otx', error: e.message }));
+
+  /* URLScan: IP/domain/URL only */
+  const usP = !isHash
+    ? fetchWithRetry(sig => API.urlscan(ioc, sig)).catch(e => ({ source: 'urlscan', error: e.message }))
+    : Promise.resolve({ source: 'urlscan', skipped: true, reason: 'N/A for hashes' });
+
+  const tfP = fetchWithRetry(sig => API.threatfox(ioc, sig)).catch(e => ({ source: 'threatfox', error: e.message }));
+
+  /* URLhaus: IP/domain/URL/MD5/SHA256 */
+  const uhOk = isIP || isDomOrUrl || t === 'hash_md5' || t === 'hash_sha256';
+  const uhP = uhOk
+    ? fetchWithRetry(sig => API.urlhaus(ioc, sig)).catch(e => ({ source: 'urlhaus', error: e.message }))
+    : Promise.resolve({ source: 'urlhaus', skipped: true, reason: 'Hash type not supported' });
+
+  /* MB: hash + IP (tag search) */
+  const mbOk = isHash || t === 'ip';
+  const mbP = mbOk
+    ? fetchWithRetry(sig => API.malwarebazaar(ioc, sig)).catch(e => ({ source: 'malwarebazaar', skipped: true, reason: e.message }))
+    : Promise.resolve({ source: 'malwarebazaar', skipped: true, reason: 'IP/hash only' });
+
+  /* HA: IP + MD5/SHA1/SHA256 */
+  const haOk = t === 'ip' || t === 'hash_md5' || t === 'hash_sha1' || t === 'hash_sha256';
+  const haP = haOk
+    ? fetchWithRetry(sig => API.hybridanalysis(ioc, sig)).catch(e => ({ source: 'hybridanalysis', error: e.message }))
+    : Promise.resolve({ source: 'hybridanalysis', skipped: true, reason: isDomOrUrl ? 'IP/hash only' : 'SHA-512 not supported' });
+
+  /* Shodan: IPv4 only */
+  const shP = t === 'ip'
+    ? fetchWithRetry(sig => API.shodan(ioc, sig)).catch(e => ({ source: 'shodan', error: e.message }))
+    : Promise.resolve({ source: 'shodan', skipped: true, reason: t === 'ipv6' ? 'IPv4 only' : 'IP only' });
 
   const [vt, ab, otx, urlscan, threatfox, urlhaus, mb, ha, shodan] =
     await Promise.all([vtP, abP, otxP, usP, tfP, uhP, mbP, haP, shP]);
@@ -136,6 +167,8 @@ async function runParallelScan(entry) {
 
 function scoreEntry(entry) {
   const { vt, ab, otx, urlscan, threatfox, urlhaus, mb, ha, shodan } = entry;
+  const iocIsHash = entry.ioc.type.startsWith('hash_');
+  const iocIsIP   = entry.ioc.type === 'ip' || entry.ioc.type === 'ipv6';
   let vtPts = 0, abPts = 0, otxPts = 0;
   let sourcesChecked = 0;
   const reasons = [], indicators = [], flags = [];
@@ -151,7 +184,7 @@ function scoreEntry(entry) {
     }
   }
 
-  /* AbuseIPDB — max 40 pts */
+  /* AbuseIPDB — max 40 pts (IP only) */
   if (ab && !ab.skipped && !ab.error) {
     sourcesChecked++;
     const s = ab.score || 0;
@@ -172,7 +205,14 @@ function scoreEntry(entry) {
     }
   }
 
-  const score = Math.min(100, vtPts + abPts + otxPts);
+  /* Score — normalize to 100 for non-IP types (max available = VT40 + OTX20 = 60) */
+  let score;
+  if (iocIsIP) {
+    score = Math.min(100, vtPts + abPts + otxPts);
+  } else {
+    const raw = vtPts + otxPts;
+    score = raw === 0 ? 0 : Math.min(100, Math.round(raw / 60 * 100));
+  }
 
   /* Supplementary flags */
   const tfHit = threatfox && !threatfox.skipped && !threatfox.error && !threatfox.notFound && (threatfox.iocCount || 0) > 0;
@@ -181,6 +221,7 @@ function scoreEntry(entry) {
   const usHit = urlscan  && !urlscan.skipped  && !urlscan.error  && !urlscan.notFound  && (urlscan.total || 0) > 0;
   const shCve = shodan   && !shodan.skipped   && !shodan.error   && (shodan.cves?.length || 0) > 0;
   const shTag = shodan   && !shodan.skipped   && !shodan.error   && shodan.tags?.some(t => ['tor','honeypot','malware'].includes(t));
+  const mbHit = mb       && !mb.skipped       && !mb.error       && !mb.notFound       && (mb.count || 0) > 0;
 
   if (tfHit) {
     flags.push('TF:C2');
@@ -193,7 +234,12 @@ function scoreEntry(entry) {
     if (!reasons.find(r => r.startsWith('URLhaus')))
       reasons.push(`URLhaus: ${urlhaus.urlsCount} malicious URL${urlhaus.urlsCount > 1 ? 's' : ''}`);
   }
-  if (haHit)  { flags.push('HA:SANDBOX'); indicators.push(`HA: ${ha.count} sandbox`); }
+  if (mbHit) {
+    flags.push('MB:HIT');
+    indicators.push(`MalwareBazaar: ${mb.count} sample${mb.count > 1 ? 's' : ''}`);
+    reasons.push(`Found in MalwareBazaar${mb.families?.length ? ` (${mb.families[0]})` : ''}`);
+  }
+  if (haHit)  { flags.push('HA:SANDBOX'); indicators.push(`HA: ${ha.count} sandbox hit${ha.count > 1 ? 's' : ''}`); }
   if (usHit)  flags.push(`US:${urlscan.total}`);
   if (shCve)  { flags.push('SH:CVE'); indicators.push(`Shodan: ${shodan.cves.length} CVE${shodan.cves.length > 1 ? 's' : ''}`); }
   if (shTag)  flags.push('SH:TAG');
@@ -202,12 +248,12 @@ function scoreEntry(entry) {
   const abScore = ab?.score || 0;
   const vtMal   = vt?.malicious || 0;
   let verdict;
-  if      (abScore >= 75 || vtMal >= 5 || score >= 60 || tfHit || shTag) verdict = 'malicious';
-  else if (score >= 30 || abScore >= 25 || vtMal >= 1 || uhHit || shCve) verdict = 'suspicious';
-  else if (sourcesChecked >= 2)                                            verdict = 'benign';
-  else                                                                     verdict = 'unknown';
+  if      (abScore >= 75 || vtMal >= 5 || score >= 60 || tfHit || shTag || (mbHit && iocIsHash)) verdict = 'malicious';
+  else if (score >= 30 || abScore >= 25 || vtMal >= 1 || uhHit || shCve || haHit || mbHit)       verdict = 'suspicious';
+  else if (sourcesChecked >= 2)                                                                    verdict = 'benign';
+  else                                                                                             verdict = 'unknown';
 
-  if (sourcesChecked === 0 && !tfHit && !uhHit && verdict === 'benign') verdict = 'unknown';
+  if (sourcesChecked === 0 && !tfHit && !uhHit && !mbHit && verdict === 'benign') verdict = 'unknown';
   if (verdict === 'benign' && (otx?.pulseCount || 0) > 0) verdict = 'unknown';
 
   const verdictMeta = {
@@ -230,7 +276,7 @@ function scoreEntry(entry) {
   };
 }
 
-function stopScan() { stopRequested = true; showToast('Stopping after current IP…', 'warning'); }
+function stopScan() { stopRequested = true; showToast('Stopping after current IOC…', 'warning'); }
 
 function setScanBtnState(state) {
   const btn = document.getElementById('scan-btn'), stop = document.getElementById('stop-btn');
@@ -249,7 +295,7 @@ function updateProgress(done, total, label) {
   const complete = label === 'Complete' || label === 'Stopped' || done >= total;
   document.getElementById('progress-label').textContent = complete ? 'X-VERDIKT COMPLETE' : 'ANALYZING…';
   document.getElementById('progress-sub').innerHTML = complete
-    ? `<span style="color:var(--accent)">✓ ${totalScanned} IPs analyzed</span><span style="color:var(--muted)">${pct}%</span>`
+    ? `<span style="color:var(--accent)">✓ ${totalScanned} IOC${totalScanned !== 1 ? 's' : ''} analyzed</span><span style="color:var(--muted)">${pct}%</span>`
     : `<span style="color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:70%">${escapeHtml(label)}</span><span style="color:var(--muted)">${pct}%</span>`;
 }
 function updateProgressSub(msg) { const el = document.getElementById('progress-sub'); if (el) el.innerHTML = `<span style="color:var(--yellow)">${escapeHtml(msg)}</span>`; }
