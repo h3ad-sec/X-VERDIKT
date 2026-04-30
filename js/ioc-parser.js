@@ -100,21 +100,52 @@ function parseIOCsRealtime() {
   const info = document.getElementById('ioc-parsed-info');
   const btn  = document.getElementById('scan-btn');
 
-  if (meta.total === 0) {
-    if (info) info.innerHTML = '';
+  /* Update per-mode badge counts in the mode-tab blocks */
+  const byMode = {
+    all:    meta.total,
+    ip:     meta.byType.ip + meta.byType.ipv6,
+    hash:   meta.byType.hash,
+    domain: meta.byType.domain + meta.byType.url,
+  };
+  for (const [m, n] of Object.entries(byMode)) {
+    const el = document.getElementById(`mcount-${m}`);
+    if (el) el.textContent = n > 0 ? `${n} IOC${n > 1 ? 's' : ''}` : '';
+  }
+
+  /* Filter for the active mode */
+  const mode = (typeof currentMode !== 'undefined') ? currentMode : 'all';
+  const filtered = (typeof filterIOCsByMode === 'function') ? filterIOCsByMode(meta.iocs, mode) : meta.iocs;
+
+  if (filtered.length === 0) {
+    if (info) {
+      if (meta.total > 0 && mode !== 'all') {
+        const cfg = (typeof MODE_CONFIG !== 'undefined') ? MODE_CONFIG[mode] : null;
+        info.innerHTML = `<span style="color:var(--yellow)">0 ${cfg?.label || ''} IOCs in input</span>`;
+      } else {
+        info.innerHTML = '';
+      }
+    }
     if (btn) btn.disabled = true;
     return;
   }
 
-  const parts = [`<span>${meta.total}</span> IOC${meta.total > 1 ? 's' : ''}`];
+  const bt = {
+    ip:     filtered.filter(i => i.type === 'ip').length,
+    ipv6:   filtered.filter(i => i.type === 'ipv6').length,
+    domain: filtered.filter(i => i.type === 'domain').length,
+    url:    filtered.filter(i => i.type === 'url').length,
+    hash:   filtered.filter(i => i.type.startsWith('hash_')).length,
+  };
+  const parts = [`<span>${filtered.length}</span> IOC${filtered.length > 1 ? 's' : ''}`];
   const labels = [];
-  if (meta.byType.ip)     labels.push(`${meta.byType.ip} IPv4`);
-  if (meta.byType.ipv6)   labels.push(`${meta.byType.ipv6} IPv6`);
-  if (meta.byType.domain) labels.push(`${meta.byType.domain} Domain${meta.byType.domain > 1 ? 's' : ''}`);
-  if (meta.byType.url)    labels.push(`${meta.byType.url} URL${meta.byType.url > 1 ? 's' : ''}`);
-  if (meta.byType.hash)   labels.push(`${meta.byType.hash} Hash${meta.byType.hash > 1 ? 'es' : ''}`);
+  if (bt.ip)     labels.push(`${bt.ip} IPv4`);
+  if (bt.ipv6)   labels.push(`${bt.ipv6} IPv6`);
+  if (bt.domain) labels.push(`${bt.domain} Domain${bt.domain > 1 ? 's' : ''}`);
+  if (bt.url)    labels.push(`${bt.url} URL${bt.url > 1 ? 's' : ''}`);
+  if (bt.hash)   labels.push(`${bt.hash} Hash${bt.hash > 1 ? 'es' : ''}`);
   if (labels.length) parts.push(labels.join(' · '));
-  if (meta.private) parts.push(`<span style="color:var(--yellow)">${meta.private} private</span>`);
+  const priv = filtered.filter(i => i.isPrivate).length;
+  if (priv) parts.push(`<span style="color:var(--yellow)">${priv} private</span>`);
 
   if (info) info.innerHTML = parts.join(' · ');
   if (btn) btn.disabled = false;

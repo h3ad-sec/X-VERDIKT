@@ -39,7 +39,9 @@ async function startScan() {
   const raw = getInputText();
   if (!raw?.trim()) return;
 
-  const { iocs } = parseIOCsWithMeta(raw);
+  let { iocs } = parseIOCsWithMeta(raw);
+  if (typeof filterIOCsByMode === 'function' && typeof currentMode !== 'undefined')
+    iocs = filterIOCsByMode(iocs, currentMode);
   if (!iocs.length) { showToast('No valid IOCs detected', 'error'); return; }
 
   const privateCount = iocs.filter(i => i.isPrivate).length;
@@ -99,12 +101,27 @@ async function startScan() {
   );
 }
 
+/* Sources active per IOC type:
+   vt ab otx us tf uh mb ha sh
+   IP:     ✓  ✓  ✓   ✗  ✓  ✗  ✗  ✗  ✓
+   IPv6:   ✓  ✓  ✓   ✗  ✓  ✗  ✗  ✗  ✗
+   Hash:   ✓  ✗  ✓   ✗  ✓  ✗  ✓  ✓  ✗
+   Domain: ✓  ✗  ✓   ✓  ✓  ✗  ✗  ✗  ✗
+   URL:    ✓  ✗  ✓   ✓  ✗  ✓  ✗  ✗  ✗  */
+const TYPE_SOURCES = {
+  ip:          { ab:1, us:0, tf:1, uh:0, mb:0, ha:0, sh:1 },
+  ipv6:        { ab:1, us:0, tf:1, uh:0, mb:0, ha:0, sh:0 },
+  hash_md5:    { ab:0, us:0, tf:1, uh:0, mb:1, ha:1, sh:0 },
+  hash_sha1:   { ab:0, us:0, tf:1, uh:0, mb:1, ha:1, sh:0 },
+  hash_sha256: { ab:0, us:0, tf:1, uh:0, mb:1, ha:1, sh:0 },
+  hash_sha512: { ab:0, us:0, tf:1, uh:0, mb:1, ha:0, sh:0 },
+  domain:      { ab:0, us:1, tf:1, uh:0, mb:0, ha:0, sh:0 },
+  url:         { ab:0, us:1, tf:0, uh:1, mb:0, ha:0, sh:0 },
+};
+
 async function runParallelScan(entry) {
   const { ioc } = entry;
   const t = ioc.type;
-  const isIP   = t === 'ip' || t === 'ipv6';
-  const isHash = t.startsWith('hash_');
-  const isDomOrUrl = t === 'domain' || t === 'url';
 
   if (ioc.isPrivate) {
     const skip = s => ({ source: s, skipped: true, reason: 'Private IP — skipped' });
@@ -115,47 +132,22 @@ async function runParallelScan(entry) {
     return;
   }
 
+  const m = TYPE_SOURCES[t] || { ab:0, us:0, tf:1, uh:0, mb:0, ha:0, sh:0 };
+  const off = (s, r) => Promise.resolve({ source: s, skipped: true, reason: r || 'N/A for this IOC type' });
+
   const vtP = (async () => {
     await VtBucket.acquire();
     return fetchWithRetry(sig => API.virusTotal(ioc, sig)).catch(e => ({ source: 'virustotal', error: e.message }));
   })();
 
-  /* AbuseIPDB: IP/IPv6 only */
-  const abP = isIP
-    ? fetchWithRetry(sig => API.abuseIPDB(ioc, sig)).catch(e => ({ source: 'abuseipdb', error: e.message }))
-    : Promise.resolve({ source: 'abuseipdb', skipped: true, reason: 'IP only' });
-
-  const otxP = fetchWithRetry(sig => API.otx(ioc, sig)).catch(e => ({ source: 'otx', error: e.message }));
-
-  /* URLScan: IP/domain/URL only */
-  const usP = !isHash
-    ? fetchWithRetry(sig => API.urlscan(ioc, sig)).catch(e => ({ source: 'urlscan', error: e.message }))
-    : Promise.resolve({ source: 'urlscan', skipped: true, reason: 'N/A for hashes' });
-
-  const tfP = fetchWithRetry(sig => API.threatfox(ioc, sig)).catch(e => ({ source: 'threatfox', error: e.message }));
-
-  /* URLhaus: IP/domain/URL/MD5/SHA256 */
-  const uhOk = isIP || isDomOrUrl || t === 'hash_md5' || t === 'hash_sha256';
-  const uhP = uhOk
-    ? fetchWithRetry(sig => API.urlhaus(ioc, sig)).catch(e => ({ source: 'urlhaus', error: e.message }))
-    : Promise.resolve({ source: 'urlhaus', skipped: true, reason: 'Hash type not supported' });
-
-  /* MB: hash + IP (tag search) */
-  const mbOk = isHash || t === 'ip';
-  const mbP = mbOk
-    ? fetchWithRetry(sig => API.malwarebazaar(ioc, sig)).catch(e => ({ source: 'malwarebazaar', skipped: true, reason: e.message }))
-    : Promise.resolve({ source: 'malwarebazaar', skipped: true, reason: 'IP/hash only' });
-
-  /* HA: IP + MD5/SHA1/SHA256 */
-  const haOk = t === 'ip' || t === 'hash_md5' || t === 'hash_sha1' || t === 'hash_sha256';
-  const haP = haOk
-    ? fetchWithRetry(sig => API.hybridanalysis(ioc, sig)).catch(e => ({ source: 'hybridanalysis', error: e.message }))
-    : Promise.resolve({ source: 'hybridanalysis', skipped: true, reason: isDomOrUrl ? 'IP/hash only' : 'SHA-512 not supported' });
-
-  /* Shodan: IPv4 only */
-  const shP = t === 'ip'
-    ? fetchWithRetry(sig => API.shodan(ioc, sig)).catch(e => ({ source: 'shodan', error: e.message }))
-    : Promise.resolve({ source: 'shodan', skipped: true, reason: t === 'ipv6' ? 'IPv4 only' : 'IP only' });
+  const abP  = m.ab ? fetchWithRetry(sig => API.abuseIPDB(ioc, sig)).catch(e => ({ source: 'abuseipdb',    error: e.message })) : off('abuseipdb');
+  const otxP =        fetchWithRetry(sig => API.otx(ioc, sig))       .catch(e => ({ source: 'otx',          error: e.message }));
+  const usP  = m.us ? fetchWithRetry(sig => API.urlscan(ioc, sig))   .catch(e => ({ source: 'urlscan',      error: e.message })) : off('urlscan');
+  const tfP  = m.tf ? fetchWithRetry(sig => API.threatfox(ioc, sig)) .catch(e => ({ source: 'threatfox',    error: e.message })) : off('threatfox');
+  const uhP  = m.uh ? fetchWithRetry(sig => API.urlhaus(ioc, sig))   .catch(e => ({ source: 'urlhaus',      error: e.message })) : off('urlhaus');
+  const mbP  = m.mb ? fetchWithRetry(sig => API.malwarebazaar(ioc, sig)).catch(e => ({ source: 'malwarebazaar', skipped: true, reason: e.message })) : off('malwarebazaar');
+  const haP  = m.ha ? fetchWithRetry(sig => API.hybridanalysis(ioc, sig)).catch(e => ({ source: 'hybridanalysis', error: e.message })) : off('hybridanalysis');
+  const shP  = m.sh ? fetchWithRetry(sig => API.shodan(ioc, sig))    .catch(e => ({ source: 'shodan',       error: e.message })) : off('shodan');
 
   const [vt, ab, otx, urlscan, threatfox, urlhaus, mb, ha, shodan] =
     await Promise.all([vtP, abP, otxP, usP, tfP, uhP, mbP, haP, shP]);

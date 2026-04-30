@@ -167,6 +167,28 @@
           <div class="ioc-parsed-info" id="ioc-parsed-info"></div>
         </div>
         <div class="panel-body">
+          <div class="mode-tabs">
+            <button class="mode-tab active" data-mode="all" onclick="switchMode('all',this)">
+              <div class="mt-label">BULK</div>
+              <div class="mt-sub">ALL IOC TYPES</div>
+              <div class="mt-count" id="mcount-all"></div>
+            </button>
+            <button class="mode-tab" data-mode="ip" onclick="switchMode('ip',this)">
+              <div class="mt-label" style="color:var(--ab)">IP / IPv6</div>
+              <div class="mt-sub">IPv4 · IPv6</div>
+              <div class="mt-count" id="mcount-ip"></div>
+            </button>
+            <button class="mode-tab" data-mode="hash" onclick="switchMode('hash',this)">
+              <div class="mt-label" style="color:var(--mb)">HASH</div>
+              <div class="mt-sub">MD5 · SHA1 · SHA256 · SHA512</div>
+              <div class="mt-count" id="mcount-hash"></div>
+            </button>
+            <button class="mode-tab" data-mode="domain" onclick="switchMode('domain',this)">
+              <div class="mt-label" style="color:#10b981">DOMAIN / URL</div>
+              <div class="mt-sub">Domains · URLs</div>
+              <div class="mt-count" id="mcount-domain"></div>
+            </button>
+          </div>
           <div class="input-tabs">
             <button class="input-tab active" onclick="switchInputTab('text',this)">PASTE / TYPE</button>
             <button class="input-tab" onclick="switchInputTab('file',this)">FILE UPLOAD</button>

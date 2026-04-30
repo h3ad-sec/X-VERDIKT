@@ -1,4 +1,44 @@
 
+let currentMode = 'all';
+
+const MODE_CONFIG = {
+  all: {
+    label: 'IOC',
+    types: null,
+    placeholder: `Paste IOCs — one per line or comma/space separated\n\nExamples:\n  8.8.8.8\n  evil.example.com\n  https://malware.example.com/payload.exe\n  44d88612fea8a8f36de82e1278abb02f  (MD5)\n  1[.]2[.]3[.]4  (defanged)\n\nCtrl+Enter to analyze`,
+  },
+  ip: {
+    label: 'IP',
+    types: ['ip', 'ipv6'],
+    placeholder: `Paste IP addresses — one per line\n\nExamples:\n  8.8.8.8\n  1.1.1.1\n  2001:db8::1\n  1[.]2[.]3[.]4  (defanged)\n\nCtrl+Enter to analyze`,
+  },
+  hash: {
+    label: 'Hash',
+    types: ['hash_md5', 'hash_sha1', 'hash_sha256', 'hash_sha512'],
+    placeholder: `Paste file hashes — one per line\n\nExamples:\n  44d88612fea8a8f36de82e1278abb02f  (MD5)\n  da39a3ee5e6b4b0d3255bfef95601890afd80709  (SHA-1)\n  e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855  (SHA-256)\n\nCtrl+Enter to analyze`,
+  },
+  domain: {
+    label: 'Domain/URL',
+    types: ['domain', 'url'],
+    placeholder: `Paste domains or URLs — one per line\n\nExamples:\n  evil.example.com\n  malware[.]example.com  (defanged)\n  https://malware.example.com/payload.exe\n  hxxps://phishing[.]site/login\n\nCtrl+Enter to analyze`,
+  },
+};
+
+function filterIOCsByMode(iocs, mode) {
+  const allowed = MODE_CONFIG[mode]?.types;
+  if (!allowed) return iocs;
+  return iocs.filter(ioc => allowed.includes(ioc.type));
+}
+
+function switchMode(mode, btn) {
+  currentMode = mode;
+  document.querySelectorAll('.mode-tab').forEach(t => t.classList.remove('active'));
+  btn.classList.add('active');
+  const ta = document.getElementById('ip-input');
+  if (ta) ta.placeholder = MODE_CONFIG[mode].placeholder;
+  parseIOCsRealtime();
+}
+
 document.addEventListener('DOMContentLoaded', async () => {
   document.addEventListener('keydown', e => {
     if (e.key === 'Escape') closeModal();
