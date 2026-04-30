@@ -26,17 +26,35 @@ export default async function handler(req, res) {
         return res.status(400).json({ error: 'htype must be md5, sha1, or sha256' });
       if (!/^[0-9a-fA-F]+$/.test(hash) || hash.length !== expectedLen)
         return res.status(400).json({ error: `Invalid ${htype} hash format` });
-      formBody = `hash=${encodeURIComponent(hash.toLowerCase())}`;
+
+      const h = hash.toLowerCase();
+      const haHeaders = {
+        'api-key': apiKey, 'User-Agent': 'Falcon Sandbox', 'accept': 'application/json',
+      };
+
+      if (htype === 'sha256') {
+        /* Direct overview lookup — same endpoint used by the HA console */
+        const upstream = await fetch(
+          `https://www.hybrid-analysis.com/api/v2/overview/${h}`,
+          { method: 'GET', headers: haHeaders }
+        );
+        if (upstream.status === 404 || upstream.status === 400)
+          return res.status(200).json({ count: 0, result: [] });
+        if (!upstream.ok) return res.status(200).json({ count: 0, result: [] });
+        const data = await upstream.json();
+        /* Normalize: overview has a top-level object + reports[]; wrap for consistent parsing */
+        const reports = (data.reports && data.reports.length) ? data.reports : [data];
+        return res.status(200).json({ count: reports.length, result: reports });
+      }
+
+      /* MD5 / SHA1 — use search/hash */
+      formBody = `hash=${encodeURIComponent(h)}`;
 
     } else {
       return res.status(400).json({ error: 'Missing parameter: ip, or hash+htype' });
     }
 
-    const endpoint = hash
-      ? 'https://www.hybrid-analysis.com/api/v2/search/hash'
-      : 'https://www.hybrid-analysis.com/api/v2/search/terms';
-
-    const upstream = await fetch(endpoint, {
+    const upstream = await fetch('https://www.hybrid-analysis.com/api/v2/search/hash', {
       method: 'POST',
       headers: {
         'api-key': apiKey,
@@ -46,7 +64,6 @@ export default async function handler(req, res) {
       },
       body: formBody,
     });
-    /* 404 = not indexed; 400 = hash not in accepted format — both mean no results */
     if (upstream.status === 404 || upstream.status === 400)
       return res.status(200).json({ count: 0, result: [] });
     const data = await upstream.json();
