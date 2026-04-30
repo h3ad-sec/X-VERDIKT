@@ -11,7 +11,7 @@ export default async function handler(req, res) {
 
   const headers = {
     'Content-Type': 'application/json',
-    ...(process.env.THREATFOX_API_KEY ? { 'Api-Key': process.env.THREATFOX_API_KEY } : {}),
+    ...(process.env.THREATFOX_API_KEY ? { 'Auth-Key': process.env.THREATFOX_API_KEY } : {}),
   };
   const EMPTY = { query_status: 'no_result', data: [] };
 
