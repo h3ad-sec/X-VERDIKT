@@ -19,6 +19,8 @@ export default async function handler(req, res) {
       },
       body,
     });
+    /* ThreatFox returns 401 when no valid API key is provided; treat as no results */
+    if (upstream.status === 401) return res.status(200).json({ query_status: 'no_result', data: [] });
     const data = await upstream.json();
     return res.status(upstream.status).json(data);
   } catch (e) {

@@ -26,14 +26,17 @@ export default async function handler(req, res) {
         return res.status(400).json({ error: 'htype must be md5, sha1, or sha256' });
       if (!/^[0-9a-fA-F]+$/.test(hash) || hash.length !== expectedLen)
         return res.status(400).json({ error: `Invalid ${htype} hash format` });
-      // Use a raw string to preserve literal brackets — URLSearchParams encodes [ → %5B
-      formBody = `terms[${htype}]=${encodeURIComponent(hash)}`;
+      formBody = new URLSearchParams({ hash: hash.toLowerCase() });
 
     } else {
       return res.status(400).json({ error: 'Missing parameter: ip, or hash+htype' });
     }
 
-    const upstream = await fetch('https://www.hybrid-analysis.com/api/v2/search/terms', {
+    const endpoint = hash
+      ? 'https://www.hybrid-analysis.com/api/v2/search/hash'
+      : 'https://www.hybrid-analysis.com/api/v2/search/terms';
+
+    const upstream = await fetch(endpoint, {
       method: 'POST',
       headers: {
         'api-key': apiKey,

@@ -57,7 +57,7 @@ async function startScan() {
       urlscan: null, threatfox: null, urlhaus: null,
       mb: null, ha: null, shodan: null,
       verdict: null, confidence: null, action: null,
-      score: null, vtPts: null, abPts: null, otxPts: null,
+      score: null, vtPts: null, abPts: null, mbPts: null, otxPts: null,
       reasons: [], indicators: [], flags: [], done: false,
     });
   }
@@ -169,7 +169,7 @@ function scoreEntry(entry) {
   const { vt, ab, otx, urlscan, threatfox, urlhaus, mb, ha, shodan } = entry;
   const iocIsHash = entry.ioc.type.startsWith('hash_');
   const iocIsIP   = entry.ioc.type === 'ip' || entry.ioc.type === 'ipv6';
-  let vtPts = 0, abPts = 0, otxPts = 0;
+  let vtPts = 0, abPts = 0, mbPts = 0, otxPts = 0;
   let sourcesChecked = 0;
   const reasons = [], indicators = [], flags = [];
 
@@ -194,6 +194,15 @@ function scoreEntry(entry) {
     else if (s >= 25) reasons.push(`Moderate abuse score (${s}%) on AbuseIPDB`);
   }
 
+  /* MalwareBazaar — max 40 pts (hash only; binary hit/miss) */
+  const mbHit = mb && !mb.skipped && !mb.error && !mb.notFound && (mb.count || 0) > 0;
+  if (iocIsHash && mbHit) {
+    sourcesChecked++;
+    mbPts = 40;
+    indicators.push(`MalwareBazaar: ${mb.count} sample${mb.count > 1 ? 's' : ''}`);
+    reasons.push(`Found in MalwareBazaar${mb.families?.length ? ` (${mb.families[0]})` : ''}`);
+  }
+
   /* OTX — max 20 pts */
   if (otx && !otx.skipped && !otx.error) {
     sourcesChecked++;
@@ -205,26 +214,26 @@ function scoreEntry(entry) {
     }
   }
 
-  /* Score — normalize to 100 for non-IP types (max available = VT40 + OTX20 = 60) */
+  /* Score: IP = VT(40)+AB(40)+OTX(20); Hash = VT(40)+MB(40)+OTX(20); domain/url = normalize VT+OTX over 60 */
   let score;
   if (iocIsIP) {
     score = Math.min(100, vtPts + abPts + otxPts);
+  } else if (iocIsHash) {
+    score = Math.min(100, vtPts + mbPts + otxPts);
   } else {
     const raw = vtPts + otxPts;
     score = raw === 0 ? 0 : Math.min(100, Math.round(raw / 60 * 100));
   }
 
-  /* Supplementary flags */
+  /* Supplementary signals — HA and TF have dedicated table columns; no flag chips for them */
   const tfHit = threatfox && !threatfox.skipped && !threatfox.error && !threatfox.notFound && (threatfox.iocCount || 0) > 0;
   const uhHit = urlhaus  && !urlhaus.skipped  && !urlhaus.error  && !urlhaus.notFound  && (urlhaus.urlsCount || 0) > 0;
   const haHit = ha       && !ha.skipped       && !ha.error       && !ha.notFound       && (ha.count || 0) > 0;
   const usHit = urlscan  && !urlscan.skipped  && !urlscan.error  && !urlscan.notFound  && (urlscan.total || 0) > 0;
   const shCve = shodan   && !shodan.skipped   && !shodan.error   && (shodan.cves?.length || 0) > 0;
   const shTag = shodan   && !shodan.skipped   && !shodan.error   && shodan.tags?.some(t => ['tor','honeypot','malware'].includes(t));
-  const mbHit = mb       && !mb.skipped       && !mb.error       && !mb.notFound       && (mb.count || 0) > 0;
 
   if (tfHit) {
-    flags.push('TF:C2');
     indicators.push(`ThreatFox: ${threatfox.iocCount} C2`);
     reasons.push(`ThreatFox: ${threatfox.iocCount} C2 indicator${threatfox.iocCount > 1 ? 's' : ''}`);
   }
@@ -234,12 +243,13 @@ function scoreEntry(entry) {
     if (!reasons.find(r => r.startsWith('URLhaus')))
       reasons.push(`URLhaus: ${urlhaus.urlsCount} malicious URL${urlhaus.urlsCount > 1 ? 's' : ''}`);
   }
-  if (mbHit) {
+  /* MB:HIT flag only for IP (tag search); hash MB data is shown in its own column */
+  if (mbHit && !iocIsHash) {
     flags.push('MB:HIT');
     indicators.push(`MalwareBazaar: ${mb.count} sample${mb.count > 1 ? 's' : ''}`);
     reasons.push(`Found in MalwareBazaar${mb.families?.length ? ` (${mb.families[0]})` : ''}`);
   }
-  if (haHit)  { flags.push('HA:SANDBOX'); indicators.push(`HA: ${ha.count} sandbox hit${ha.count > 1 ? 's' : ''}`); }
+  if (haHit) indicators.push(`HA: ${ha.count} sandbox hit${ha.count > 1 ? 's' : ''}`);
   if (usHit)  flags.push(`US:${urlscan.total}`);
   if (shCve)  { flags.push('SH:CVE'); indicators.push(`Shodan: ${shodan.cves.length} CVE${shodan.cves.length > 1 ? 's' : ''}`); }
   if (shTag)  flags.push('SH:TAG');
@@ -248,12 +258,12 @@ function scoreEntry(entry) {
   const abScore = ab?.score || 0;
   const vtMal   = vt?.malicious || 0;
   let verdict;
-  if      (abScore >= 75 || vtMal >= 5 || score >= 60 || tfHit || shTag || (mbHit && iocIsHash)) verdict = 'malicious';
-  else if (score >= 30 || abScore >= 25 || vtMal >= 1 || uhHit || shCve || haHit || mbHit)       verdict = 'suspicious';
-  else if (sourcesChecked >= 2)                                                                    verdict = 'benign';
-  else                                                                                             verdict = 'unknown';
+  if      (abScore >= 75 || vtMal >= 5 || score >= 60 || tfHit || shTag) verdict = 'malicious';
+  else if (score >= 30 || abScore >= 25 || vtMal >= 1 || uhHit || shCve || haHit) verdict = 'suspicious';
+  else if (sourcesChecked >= 2)                                                    verdict = 'benign';
+  else                                                                             verdict = 'unknown';
 
-  if (sourcesChecked === 0 && !tfHit && !uhHit && !mbHit && verdict === 'benign') verdict = 'unknown';
+  if (sourcesChecked === 0 && !tfHit && !uhHit && verdict === 'benign') verdict = 'unknown';
   if (verdict === 'benign' && (otx?.pulseCount || 0) > 0) verdict = 'unknown';
 
   const verdictMeta = {
@@ -268,7 +278,7 @@ function scoreEntry(entry) {
     reasons.push(sourcesChecked === 0 ? 'Sources pending or unavailable' : 'No threat signals detected');
 
   return {
-    score, vtPts, abPts, otxPts,
+    score, vtPts, abPts, mbPts, otxPts,
     verdict, confidence, action,
     reasons: reasons.slice(0, 3),
     indicators: indicators.slice(0, 6),

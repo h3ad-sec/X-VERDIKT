@@ -52,12 +52,12 @@ function renderResultRows(results) {
 }
 
 function buildRow(entry, i) {
-  const { ioc, verdict, action, score, vtPts, abPts, otxPts, confidence, flags, done } = entry;
+  const { ioc, verdict, action, score, vtPts, abPts, mbPts, otxPts, confidence, flags, done } = entry;
   const privateBadge = ioc.isPrivate ? '<div class="ioc-private-badge">PRIVATE</div>' : '';
   const typeBadge    = TYPE_BADGES[ioc.type] || `<span class="type-badge">${escapeHtml(ioc.label)}</span>`;
-  /* truncate long values (URLs/hashes) for the table cell */
   const displayVal = ioc.type === 'url' || ioc.type.startsWith('hash_')
     ? truncate(ioc.value, 48) : ioc.value;
+  const isHash = ioc.type.startsWith('hash_');
 
   return `<tr data-row="${i}" data-verdict="${verdict||'pending'}" data-action="${action||''}" data-type="${escapeAttr(ioc.type)}" data-ioc="${escapeAttr(ioc.value)}">
     <td class="td-ioc">
@@ -70,8 +70,10 @@ function buildRow(entry, i) {
     <td>${typeBadge}</td>
     <td id="v-${i}">${buildVerdictCell(verdict, score, confidence, done)}</td>
     <td id="vt-${i}">${buildSourceScoreCell('vt', vtPts, entry.vt, done)}</td>
-    <td id="ab-${i}">${buildSourceScoreCell('ab', abPts, entry.ab, done)}</td>
+    <td id="ab-${i}">${isHash ? buildSourceScoreCell('mb', mbPts, entry.mb, done) : buildSourceScoreCell('ab', abPts, entry.ab, done)}</td>
     <td id="otx-${i}">${buildSourceScoreCell('otx', otxPts, entry.otx, done)}</td>
+    <td id="ha-${i}">${buildHAScoreCell(entry.ha, done)}</td>
+    <td id="tf-${i}">${buildTFScoreCell(entry.threatfox, done)}</td>
     <td id="fl-${i}">${buildFlagsCell(flags, done)}</td>
     <td>${done ? `<button class="btn-detail" onclick="openModal(${i})">DETAIL</button>` : '<span class="src-loading">…</span>'}</td>
   </tr>`;
@@ -98,8 +100,8 @@ function buildVerdictCell(verdict, score, confidence, done) {
 
 function buildSourceScoreCell(src, pts, data, done) {
   if (!done) return '<span class="src-loading">…</span>';
-  const colors = { vt: 'var(--vt)', ab: 'var(--ab)', otx: 'var(--otx)' };
-  const maxPts = { vt: 40, ab: 40, otx: 20 };
+  const colors = { vt: 'var(--vt)', ab: 'var(--ab)', otx: 'var(--otx)', mb: 'var(--mb)' };
+  const maxPts = { vt: 40, ab: 40, otx: 20, mb: 40 };
   const col = colors[src];
   if (!data || data.skipped || data.error) {
     const reason = data?.error || data?.reason || 'N/A';
@@ -110,10 +112,34 @@ function buildSourceScoreCell(src, pts, data, done) {
   if (src === 'vt')  label = data.total > 0 ? `${data.malicious}/${data.total}` : 'N/A';
   if (src === 'ab')  label = `${data.score || 0}%`;
   if (src === 'otx') label = `${data.pulseCount || 0} pulses`;
+  if (src === 'mb')  label = data.notFound ? 'Not found' : `${data.count || 0} sample${(data.count||0) !== 1 ? 's' : ''}`;
   return `<div class="src-score-cell">
     <div class="src-pts" style="color:${col}">${pts != null ? pts : '—'}<span class="src-pts-max">/${maxPts[src]}</span></div>
     <div class="src-bar"><div class="src-bar-fill" style="width:${pct}%;background:${col}"></div></div>
     <div class="src-label">${escapeHtml(label)}</div>
+  </div>`;
+}
+
+function buildHAScoreCell(ha, done) {
+  if (!done) return '<span class="src-loading">…</span>';
+  if (!ha || ha.skipped) return `<div class="src-score-cell"><span style="color:var(--muted);font-size:11px">${escapeHtml(truncate(ha?.reason||'N/A',18))}</span></div>`;
+  if (ha.error) return `<div class="src-score-cell"><span style="color:var(--muted);font-size:11px">${escapeHtml(truncate(ha.error,18))}</span></div>`;
+  if (ha.notFound || !ha.count) return `<div class="src-score-cell"><span style="color:var(--accent);font-size:11px">No hits</span></div>`;
+  const col = ha.maliciousCount > 0 ? 'var(--red)' : 'var(--yellow)';
+  return `<div class="src-score-cell">
+    <div class="src-pts" style="color:${col}">${ha.count}</div>
+    <div class="src-label">${ha.maliciousCount > 0 ? `${ha.maliciousCount} mal` : 'hits'}</div>
+  </div>`;
+}
+
+function buildTFScoreCell(tf, done) {
+  if (!done) return '<span class="src-loading">…</span>';
+  if (!tf || tf.skipped) return `<div class="src-score-cell"><span style="color:var(--muted);font-size:11px">${escapeHtml(truncate(tf?.reason||'N/A',18))}</span></div>`;
+  if (tf.error) return `<div class="src-score-cell"><span style="color:var(--muted);font-size:11px">${escapeHtml(truncate(tf.error,18))}</span></div>`;
+  if (tf.notFound) return `<div class="src-score-cell"><span style="color:var(--accent);font-size:11px">No C2</span></div>`;
+  return `<div class="src-score-cell">
+    <div class="src-pts" style="color:var(--tf)">${tf.iocCount}</div>
+    <div class="src-label">C2${tf.maxConfidence ? ` ${tf.maxConfidence}%` : ''}</div>
   </div>`;
 }
 
@@ -131,17 +157,22 @@ function buildFlagsCell(flags, done) {
 }
 
 function updateRow(i, entry) {
-  const { verdict, score, vtPts, abPts, otxPts, confidence, flags, vt, ab, otx } = entry;
+  const { verdict, score, vtPts, abPts, mbPts, otxPts, confidence, flags, vt, ab, mb, otx, ha, threatfox } = entry;
+  const isHash = entry.ioc.type.startsWith('hash_');
   const vEl  = document.getElementById(`v-${i}`);
   const vtEl = document.getElementById(`vt-${i}`);
   const abEl = document.getElementById(`ab-${i}`);
   const otxEl= document.getElementById(`otx-${i}`);
+  const haEl = document.getElementById(`ha-${i}`);
+  const tfEl = document.getElementById(`tf-${i}`);
   const flEl = document.getElementById(`fl-${i}`);
   const row  = document.querySelector(`tr[data-row="${i}"]`);
   if (vEl)   vEl.innerHTML  = buildVerdictCell(verdict, score, confidence, true);
   if (vtEl)  vtEl.innerHTML = buildSourceScoreCell('vt', vtPts, vt, true);
-  if (abEl)  abEl.innerHTML = buildSourceScoreCell('ab', abPts, ab, true);
+  if (abEl)  abEl.innerHTML = isHash ? buildSourceScoreCell('mb', mbPts, mb, true) : buildSourceScoreCell('ab', abPts, ab, true);
   if (otxEl) otxEl.innerHTML= buildSourceScoreCell('otx', otxPts, otx, true);
+  if (haEl)  haEl.innerHTML = buildHAScoreCell(ha, true);
+  if (tfEl)  tfEl.innerHTML = buildTFScoreCell(threatfox, true);
   if (flEl)  flEl.innerHTML = buildFlagsCell(flags, true);
   if (row) {
     row.dataset.verdict = verdict || 'unknown';
@@ -154,7 +185,7 @@ function updateRow(i, entry) {
 
 function updateRowLoading(i) {
   const row = document.querySelector(`tr[data-row="${i}"]`);
-  if (row) row.querySelectorAll('[id^="v-"],[id^="vt-"],[id^="ab-"],[id^="otx-"],[id^="fl-"]').forEach(el => { el.innerHTML = '<div class="verdict-pending-cell"><div class="vc-spinner"></div></div>'; });
+  if (row) row.querySelectorAll('[id^="v-"],[id^="vt-"],[id^="ab-"],[id^="otx-"],[id^="ha-"],[id^="tf-"],[id^="fl-"]').forEach(el => { el.innerHTML = '<div class="verdict-pending-cell"><div class="vc-spinner"></div></div>'; });
 }
 
 /* ── Summary strip ────────────────────────────────────────────────────────── */
@@ -244,9 +275,10 @@ function buildModalTitle(entry) {
 }
 
 function buildModalContent(entry) {
-  const { ioc, vt, ab, otx, urlscan, threatfox, urlhaus, mb, ha, shodan, score, vtPts, abPts, otxPts, verdict, confidence, action, reasons } = entry;
+  const { ioc, vt, ab, otx, urlscan, threatfox, urlhaus, mb, ha, shodan, score, vtPts, abPts, mbPts, otxPts, verdict, confidence, action, reasons } = entry;
   const iocType = ioc.type;
-  const iocIsIP = iocType === 'ip' || iocType === 'ipv6';
+  const iocIsIP   = iocType === 'ip' || iocType === 'ipv6';
+  const iocIsHash = iocType.startsWith('hash_');
   const vMap = { malicious: ['var(--red)','🔴 MALICIOUS'], suspicious: ['var(--yellow)','🟡 SUSPICIOUS'], benign: ['var(--accent)','🟢 BENIGN'], unknown: ['var(--muted)','⚪ UNKNOWN'] };
   const aMap = { block: ['var(--red)','🚫 BLOCK'], investigate: ['var(--yellow)','🔍 INVESTIGATE'], allow: ['var(--accent)','✅ ALLOW'], monitor: ['var(--muted)','⏳ MONITOR'] };
   const [vcol, vlabel] = vMap[verdict] || vMap.unknown;
@@ -279,24 +311,29 @@ function buildModalContent(entry) {
   </div>`);
 
   /* Score breakdown */
-  const maxNote = iocIsIP ? 'VT(40) + AbuseIPDB(40) + OTX(20)' : 'VT(40) + OTX(20) → normalized ×100/60';
+  const maxNote = iocIsIP ? 'VT(40) + AbuseIPDB(40) + OTX(20)'
+    : iocIsHash ? 'VT(40) + MalwareBazaar(40) + OTX(20)'
+    : 'VT(40) + OTX(20) → normalized ×100/60';
+  const secondRow = iocIsHash
+    ? buildSBDRow('MALWAREBAZAAR', mbPts, 40, 'var(--mb)', mb ? (mb.error ? 'Error: '+mb.error : mb.skipped ? mb.reason||'Skipped' : mb.notFound ? 'Not found' : `${mb.count} samples`) : '—')
+    : buildSBDRow('ABUSEIPDB', abPts, 40, 'var(--ab)', ab ? (ab.error ? 'Error: '+ab.error : ab.skipped ? ab.reason||'Skipped' : `${ab.score||0}% confidence`) : '—');
   parts.push(`<div class="sbd-section">
     <div class="sbd-label">SCORE BREAKDOWN</div>
     <table class="sbd-table">
       <thead><tr><th>SOURCE</th><th>PTS</th><th>MAX</th><th style="min-width:100px">CONTRIBUTION</th><th>SIGNAL</th></tr></thead>
       <tbody>
         ${buildSBDRow('VIRUSTOTAL', vtPts, 40, 'var(--vt)', vt ? (vt.error ? 'Error: '+vt.error : vt.skipped ? 'Skipped' : `${vt.malicious||0}/${vt.total||0} engines`) : '—')}
-        ${buildSBDRow('ABUSEIPDB', abPts, 40, 'var(--ab)', ab ? (ab.error ? 'Error: '+ab.error : ab.skipped ? ab.reason || 'Skipped' : `${ab.score||0}% confidence`) : '—')}
+        ${secondRow}
         ${buildSBDRow('OTX', otxPts, 20, 'var(--otx)', otx ? (otx.error ? 'Error: '+otx.error : otx.skipped ? 'Skipped' : `${otx.pulseCount||0} pulses`) : '—')}
       </tbody>
       <tfoot><tr class="sbd-total"><td>TOTAL</td><td><strong style="color:var(--accent)">${score}</strong></td><td>100</td><td colspan="2" style="color:var(--muted);font-size:11px">${maxNote}</td></tr></tfoot>
     </table>
   </div>`);
 
-  /* Mandatory 3-column intel */
+  /* Mandatory 3-column intel — hash uses MB instead of AbuseIPDB */
   parts.push(`<div class="modal-intel-grid">
     ${buildVTBlock(vt, iocType)}
-    ${buildAbuseIPDBBlock(ab, iocType)}
+    ${iocIsHash ? buildMBIntelBlock(mb) : buildAbuseIPDBBlock(ab, iocType)}
     ${buildOTXBlock(otx)}
   </div>`);
 
@@ -482,6 +519,25 @@ function buildOTXBlock(otx) {
     ${otx.pulseSources?.length ? `<div class="intel-sub-label">PULSE SOURCES</div><div class="modal-tags">${otx.pulseSources.map(s => `<span class="modal-tag">${escapeHtml(s)}</span>`).join('')}</div>` : ''}
     ${otx.malwareFamilies?.length ? `<div class="intel-sub-label">MALWARE FAMILIES</div><div class="modal-tags">${otx.malwareFamilies.map(f => `<span class="modal-tag" style="color:var(--red);border-color:rgba(255,59,92,.3)">${escapeHtml(f)}</span>`).join('')}</div>` : ''}
     ${otx.adversaries?.length ? `<div class="intel-sub-label">ADVERSARIES</div><div class="modal-tags">${otx.adversaries.map(a => `<span class="modal-tag" style="color:var(--yellow)">${escapeHtml(a)}</span>`).join('')}</div>` : ''}
+  </div>`;
+}
+
+function buildMBIntelBlock(mb) {
+  if (!mb || mb.error)
+    return `<div class="intel-block"><div class="intel-block-title" style="color:var(--mb)">MALWAREBAZAAR</div><div class="intel-na">${escapeHtml(mb?.error || 'Not available')}</div></div>`;
+  if (mb.skipped)
+    return `<div class="intel-block"><div class="intel-block-title" style="color:var(--mb)">MALWAREBAZAAR</div><div class="intel-na" style="color:var(--muted)">${escapeHtml(mb.reason || 'Skipped')}</div></div>`;
+  if (mb.notFound || !mb.count)
+    return `<div class="intel-block"><div class="intel-block-title" style="color:var(--mb)">MALWAREBAZAAR</div><div class="intel-na" style="color:var(--accent)">Not found in malware database</div></div>`;
+  return `<div class="intel-block">
+    <div class="intel-block-title" style="color:var(--mb)">MALWAREBAZAAR</div>
+    <div class="modal-kv-grid">
+      ${kv('Samples', String(mb.count), 'var(--red)')}
+      ${kv('File Name', mb.fileName)}
+      ${kv('File Type', mb.fileType)}
+      ${kv('First Seen', mb.firstSeen)}
+    </div>
+    ${mb.families?.length ? `<div class="intel-sub-label">MALWARE FAMILIES</div><div class="modal-tags">${mb.families.slice(0,5).map(f => `<span class="modal-tag" style="color:var(--red);border-color:rgba(255,59,92,.3)">${escapeHtml(f)}</span>`).join('')}</div>` : ''}
   </div>`;
 }
 

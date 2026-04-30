@@ -397,7 +397,8 @@ function parseMBResponse(data, iocType) {
 
 /* ── HybridAnalysis parser ───────────────────────────────────────────────── */
 function parseHybridAnalysisResponse(data) {
-  const results = data?.result || data?.results || [];
+  /* /search/hash returns a direct array; /search/terms returns {count, result:[]} */
+  const results = Array.isArray(data) ? data : (data?.result || data?.results || []);
   if (!results.length) return { source: 'hybridanalysis', notFound: true, count: 0, raw: data };
   const maliciousCount = results.filter(r => r.verdict === 'malicious' || (r.threat_level || 0) >= 2).length;
   const families = [...new Set(results.slice(0, 5).map(r => r.malware_family || r.threat_level_human).filter(Boolean))];
