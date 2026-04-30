@@ -13,7 +13,10 @@ export default async function handler(req, res) {
     const body = JSON.stringify({ query: 'search_ioc', search_term: q });
     const upstream = await fetch('https://threatfox-api.abuse.ch/api/v1/', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        ...(process.env.THREATFOX_API_KEY ? { 'Api-Key': process.env.THREATFOX_API_KEY } : {}),
+      },
       body,
     });
     const data = await upstream.json();

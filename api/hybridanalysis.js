@@ -17,7 +17,7 @@ export default async function handler(req, res) {
     if (ip) {
       if (!/^[0-9a-fA-F:.]{2,45}$/.test(ip))
         return res.status(400).json({ error: 'Invalid IP format' });
-      formBody = new URLSearchParams({ 'terms[network_ip]': ip });
+      formBody = `terms[network_ip]=${encodeURIComponent(ip)}`;
 
     } else if (hash && htype) {
       const htypeMap = { md5: 32, sha1: 40, sha256: 64 };
@@ -26,17 +26,14 @@ export default async function handler(req, res) {
         return res.status(400).json({ error: 'htype must be md5, sha1, or sha256' });
       if (!/^[0-9a-fA-F]+$/.test(hash) || hash.length !== expectedLen)
         return res.status(400).json({ error: `Invalid ${htype} hash format` });
-      formBody = new URLSearchParams({ hash });
+      // Use a raw string to preserve literal brackets — URLSearchParams encodes [ → %5B
+      formBody = `terms[${htype}]=${encodeURIComponent(hash)}`;
 
     } else {
       return res.status(400).json({ error: 'Missing parameter: ip, or hash+htype' });
     }
 
-    const endpoint = hash
-      ? 'https://www.hybrid-analysis.com/api/v2/search/hash'
-      : 'https://www.hybrid-analysis.com/api/v2/search/terms';
-
-    const upstream = await fetch(endpoint, {
+    const upstream = await fetch('https://www.hybrid-analysis.com/api/v2/search/terms', {
       method: 'POST',
       headers: {
         'api-key': apiKey,
