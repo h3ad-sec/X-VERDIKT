@@ -15,7 +15,7 @@ export default async function handler(req, res) {
     let endpoint, formBody;
 
     if (host) {
-      if (!/^[a-zA-Z0-9.\-:[\]]{2,253}$/.test(host))
+      if (!host || host.length > 253)
         return res.status(400).json({ error: 'Invalid host format' });
       endpoint = 'https://urlhaus-api.abuse.ch/v1/host/';
       formBody = new URLSearchParams({ host });
