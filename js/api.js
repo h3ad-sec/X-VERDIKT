@@ -402,13 +402,42 @@ function parseHybridAnalysisResponse(data) {
     ? data
     : (data?.result || data?.results || data?.reports || []);
   if (!results.length) return { source: 'hybridanalysis', notFound: true, count: 0, raw: data };
+
   const maliciousCount = results.filter(r => r.verdict === 'malicious' || (r.threat_level || 0) >= 2).length;
-  const families = [...new Set(results.slice(0, 5).map(r => r.malware_family || r.threat_level_human).filter(Boolean))];
+  const maxScore = Math.max(...results.map(r => r.threat_score || 0), 0);
+
+  const topReport = results.find(r => (r.threat_level || 0) >= 2)
+    || results.find(r => (r.threat_level || 0) >= 1)
+    || results[0];
+
+  const families = [...new Set(
+    results.slice(0, 8).flatMap(r => [r.vx_family, r.malware_family].filter(Boolean))
+  )].slice(0, 5);
+
+  const tags = [...new Set(
+    results.slice(0, 5).flatMap(r => r.classification_tags || []).filter(Boolean)
+  )].slice(0, 8);
+
+  const environments = [...new Set(
+    results.map(r => r.environment_description).filter(Boolean)
+  )].slice(0, 4);
+
+  const submitNames = [...new Set(
+    results.map(r => r.submit_name).filter(Boolean)
+  )].slice(0, 3);
+
+  const fileTypes = [...new Set(
+    results.flatMap(r => r.type_short || []).filter(Boolean)
+  )].slice(0, 3);
+
   return {
     source: 'hybridanalysis',
-    count: results.length, maliciousCount,
-    families: families.slice(0, 5),
-    maxScore: Math.max(...results.map(r => r.threat_score || 0), 0),
+    count: results.length, maliciousCount, maxScore,
+    verdict: topReport?.verdict || null,
+    families, tags, environments, submitNames, fileTypes,
+    sha256: topReport?.sha256 || null,
+    md5:    topReport?.md5    || null,
+    sha1:   topReport?.sha1   || null,
     notFound: false, raw: data,
   };
 }

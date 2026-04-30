@@ -126,9 +126,11 @@ function buildHAScoreCell(ha, done) {
   if (ha.error) return `<div class="src-score-cell"><span style="color:var(--muted);font-size:11px">${escapeHtml(truncate(ha.error,18))}</span></div>`;
   if (ha.notFound || !ha.count) return `<div class="src-score-cell"><span style="color:var(--accent);font-size:11px">No hits</span></div>`;
   const col = ha.maliciousCount > 0 ? 'var(--red)' : 'var(--yellow)';
+  const familyLabel = ha.families?.[0] ? truncate(ha.families[0], 14) : `${ha.count} hit${ha.count !== 1 ? 's' : ''}`;
   return `<div class="src-score-cell">
-    <div class="src-pts" style="color:${col}">${ha.count}</div>
-    <div class="src-label">${ha.maliciousCount > 0 ? `${ha.maliciousCount} mal` : 'hits'}</div>
+    <div class="src-pts" style="color:${col}">${ha.maxScore || ha.count}<span class="src-pts-max">${ha.maxScore ? '/100' : ''}</span></div>
+    <div class="src-bar"><div class="src-bar-fill" style="width:${ha.maxScore || 0}%;background:${col}"></div></div>
+    <div class="src-label">${escapeHtml(familyLabel)}</div>
   </div>`;
 }
 
@@ -604,10 +606,20 @@ function buildHAContent(ha) {
   if (!ha || ha.skipped) return `<div class="intel-na">${escapeHtml(ha?.reason || 'Skipped')}</div>`;
   if (ha.error) return `<div class="intel-na">Error: ${escapeHtml(ha.error)}</div>`;
   if (ha.notFound || !ha.count) return `<div class="intel-na" style="color:var(--accent)">No sandbox matches</div>`;
-  const lines = [`<div class="supp-kv"><span>Sandbox Hits</span><span>${ha.count}</span></div>`];
-  if (ha.maliciousCount) lines.push(`<div class="supp-kv"><span>Malicious</span><span style="color:var(--red)">${ha.maliciousCount}</span></div>`);
-  if (ha.maxScore) lines.push(`<div class="supp-kv"><span>Threat Score</span><span>${ha.maxScore}/100</span></div>`);
-  if (ha.families?.length) lines.push(`<div class="supp-kv"><span>Malware</span><span style="color:var(--red)">${ha.families.slice(0,3).join(', ')}</span></div>`);
+
+  const verdictCol = ha.verdict === 'malicious' ? 'var(--red)' : ha.verdict === 'suspicious' ? 'var(--yellow)' : 'var(--accent)';
+  const lines = [];
+  lines.push(`<div class="supp-kv"><span>Sandbox Hits</span><span>${ha.count}${ha.maliciousCount ? ` <span style="color:var(--red)">(${ha.maliciousCount} malicious)</span>` : ''}</span></div>`);
+  if (ha.verdict)   lines.push(`<div class="supp-kv"><span>Verdict</span><span style="color:${verdictCol}">${ha.verdict.toUpperCase()}</span></div>`);
+  if (ha.maxScore)  lines.push(`<div class="supp-kv"><span>Threat Score</span><span style="color:${verdictCol}">${ha.maxScore} / 100</span></div>`);
+  if (ha.families?.length)  lines.push(`<div class="supp-kv"><span>Malware Family</span><span style="color:var(--red)">${ha.families.slice(0,3).map(escapeHtml).join(', ')}</span></div>`);
+  if (ha.fileTypes?.length) lines.push(`<div class="supp-kv"><span>File Type</span><span>${ha.fileTypes.map(escapeHtml).join(', ')}</span></div>`);
+  if (ha.submitNames?.length) lines.push(`<div class="supp-kv"><span>Submitted As</span><span>${ha.submitNames.slice(0,2).map(n => escapeHtml(truncate(n,40))).join(', ')}</span></div>`);
+  if (ha.sha256)  lines.push(`<div class="supp-kv"><span>SHA-256</span><span style="font-size:10px;word-break:break-all">${escapeHtml(ha.sha256)}</span></div>`);
+  if (ha.md5)     lines.push(`<div class="supp-kv"><span>MD5</span><span style="font-size:10px">${escapeHtml(ha.md5)}</span></div>`);
+  if (ha.sha1)    lines.push(`<div class="supp-kv"><span>SHA-1</span><span style="font-size:10px">${escapeHtml(ha.sha1)}</span></div>`);
+  if (ha.environments?.length) lines.push(`<div class="supp-kv"><span>Environments</span><span>${ha.environments.slice(0,3).map(escapeHtml).join(' · ')}</span></div>`);
+  if (ha.tags?.length) lines.push(`<div style="margin-top:6px;display:flex;flex-wrap:wrap;gap:3px">${ha.tags.map(t => `<span class="modal-tag" style="color:var(--ha);border-color:rgba(132,204,22,.3)">${escapeHtml(t)}</span>`).join('')}</div>`);
   return lines.join('');
 }
 
