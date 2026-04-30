@@ -10,14 +10,19 @@ export default async function handler(req, res) {
   if (!apiKey) return res.status(503).json({ error: 'HYBRIDANALYSIS_API_KEY not configured' });
 
   const { ip, hash, htype } = req.query;
+  const headers = { 'api-key': apiKey, 'User-Agent': 'Falcon Sandbox', 'accept': 'application/json' };
 
   try {
-    let formBody;
-
     if (ip) {
       if (!/^[0-9a-fA-F:.]{2,45}$/.test(ip))
         return res.status(400).json({ error: 'Invalid IP format' });
-      formBody = `terms[network_ip]=${encodeURIComponent(ip)}`;
+      const upstream = await fetch('https://www.hybrid-analysis.com/api/v2/search/terms', {
+        method: 'POST',
+        headers: { ...headers, 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: `terms[network_ip]=${encodeURIComponent(ip)}`,
+      });
+      if (!upstream.ok) return res.status(200).json({ count: 0, result: [] });
+      return res.status(200).json(await upstream.json());
 
     } else if (hash && htype) {
       const htypeMap = { md5: 32, sha1: 40, sha256: 64 };
@@ -27,47 +32,19 @@ export default async function handler(req, res) {
       if (!/^[0-9a-fA-F]+$/.test(hash) || hash.length !== expectedLen)
         return res.status(400).json({ error: `Invalid ${htype} hash format` });
 
-      const h = hash.toLowerCase();
-      const haHeaders = {
-        'api-key': apiKey, 'User-Agent': 'Falcon Sandbox', 'accept': 'application/json',
-      };
-
-      if (htype === 'sha256') {
-        /* Direct overview lookup — same endpoint used by the HA console */
-        const upstream = await fetch(
-          `https://www.hybrid-analysis.com/api/v2/overview/${h}`,
-          { method: 'GET', headers: haHeaders }
-        );
-        if (upstream.status === 404 || upstream.status === 400)
-          return res.status(200).json({ count: 0, result: [] });
-        if (!upstream.ok) return res.status(200).json({ count: 0, result: [] });
-        const data = await upstream.json();
-        /* Normalize: overview has a top-level object + reports[]; wrap for consistent parsing */
-        const reports = (data.reports && data.reports.length) ? data.reports : [data];
-        return res.status(200).json({ count: reports.length, result: reports });
-      }
-
-      /* MD5 / SHA1 — use search/hash */
-      formBody = `hash=${encodeURIComponent(h)}`;
+      /* GET /search/hash?hash=VALUE — recommended endpoint, accepts MD5/SHA1/SHA256/SHA512 */
+      const upstream = await fetch(
+        `https://www.hybrid-analysis.com/api/v2/search/hash?hash=${encodeURIComponent(hash.toLowerCase())}`,
+        { method: 'GET', headers }
+      );
+      if (upstream.status === 404 || upstream.status === 400)
+        return res.status(200).json({ count: 0, result: [] });
+      if (!upstream.ok) return res.status(200).json({ count: 0, result: [] });
+      return res.status(200).json(await upstream.json());
 
     } else {
       return res.status(400).json({ error: 'Missing parameter: ip, or hash+htype' });
     }
-
-    const upstream = await fetch('https://www.hybrid-analysis.com/api/v2/search/hash', {
-      method: 'POST',
-      headers: {
-        'api-key': apiKey,
-        'Content-Type': 'application/x-www-form-urlencoded',
-        'User-Agent': 'Falcon Sandbox',
-        'accept': 'application/json',
-      },
-      body: formBody,
-    });
-    if (upstream.status === 404 || upstream.status === 400)
-      return res.status(200).json({ count: 0, result: [] });
-    const data = await upstream.json();
-    return res.status(upstream.status).json(data);
   } catch (e) {
     return res.status(500).json({ error: 'Upstream request failed', detail: e.message });
   }

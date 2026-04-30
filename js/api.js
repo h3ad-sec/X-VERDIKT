@@ -397,7 +397,7 @@ function parseMBResponse(data, iocType) {
 
 /* ── HybridAnalysis parser ───────────────────────────────────────────────── */
 function parseHybridAnalysisResponse(data) {
-  /* overview → {count, result:[reports]}; search/hash → direct array; search/terms → {count,result:[]} */
+  /* GET /search/hash → array or {result:[]}; POST /search/terms → {count, result:[]} */
   const results = Array.isArray(data)
     ? data
     : (data?.result || data?.results || data?.reports || []);
