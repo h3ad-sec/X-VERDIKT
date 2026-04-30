@@ -26,7 +26,7 @@ export default async function handler(req, res) {
         return res.status(400).json({ error: 'htype must be md5, sha1, or sha256' });
       if (!/^[0-9a-fA-F]+$/.test(hash) || hash.length !== expectedLen)
         return res.status(400).json({ error: `Invalid ${htype} hash format` });
-      formBody = new URLSearchParams({ hash: hash.toLowerCase() });
+      formBody = `hash=${encodeURIComponent(hash.toLowerCase())}`;
 
     } else {
       return res.status(400).json({ error: 'Missing parameter: ip, or hash+htype' });
@@ -42,9 +42,13 @@ export default async function handler(req, res) {
         'api-key': apiKey,
         'Content-Type': 'application/x-www-form-urlencoded',
         'User-Agent': 'Falcon Sandbox',
+        'accept': 'application/json',
       },
       body: formBody,
     });
+    /* 404 = not indexed; 400 = hash not in accepted format — both mean no results */
+    if (upstream.status === 404 || upstream.status === 400)
+      return res.status(200).json({ count: 0, result: [] });
     const data = await upstream.json();
     return res.status(upstream.status).json(data);
   } catch (e) {
