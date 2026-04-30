@@ -10,7 +10,12 @@ export default async function handler(req, res) {
   if (!q) return res.status(400).json({ error: 'Missing q parameter' });
 
   try {
-    const body = JSON.stringify({ query: 'search_ioc', search_term: q });
+    /* Use search_hash for MD5/SHA256 hashes; search_ioc for IPs, domains, URLs */
+    const isMd5    = /^[0-9a-fA-F]{32}$/.test(q);
+    const isSha256 = /^[0-9a-fA-F]{64}$/.test(q);
+    const body = (isMd5 || isSha256)
+      ? JSON.stringify({ query: 'search_hash', hash: q.toLowerCase() })
+      : JSON.stringify({ query: 'search_ioc', search_term: q });
     const upstream = await fetch('https://threatfox-api.abuse.ch/api/v1/', {
       method: 'POST',
       headers: {

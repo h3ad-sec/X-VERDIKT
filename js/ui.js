@@ -242,7 +242,7 @@ function applyFilters() {
 function setServerStatusDots(status) {
   const map = {
     'vt-status': status.vt, 'ab-status': status.abuseipdb, 'otx-status': status.otx,
-    'us-status': status.urlscan, 'tf-status': true, 'uh-status': true,
+    'us-status': status.urlscan, 'tf-status': status.threatfox, 'uh-status': true,
     'mb-status': status.abusech, 'ha-status': status.hybridanalysis,
     'sh-status': status.shodan,
   };
