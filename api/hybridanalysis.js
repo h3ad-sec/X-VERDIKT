@@ -32,13 +32,25 @@ export default async function handler(req, res) {
       if (!/^[0-9a-fA-F]+$/.test(hash) || hash.length !== expectedLen)
         return res.status(400).json({ error: `Invalid ${htype} hash format` });
 
-      /* GET /search/hash?hash=VALUE — recommended endpoint, accepts MD5/SHA1/SHA256/SHA512 */
+      const h = hash.toLowerCase();
+
+      if (htype === 'sha256') {
+        /* Direct lookup — same endpoint the HA console uses */
+        const upstream = await fetch(
+          `https://www.hybrid-analysis.com/api/v2/overview/${h}`,
+          { method: 'GET', headers }
+        );
+        if (!upstream.ok) return res.status(200).json({ count: 0, result: [] });
+        const data = await upstream.json();
+        const reports = (data.reports?.length) ? data.reports : [data];
+        return res.status(200).json({ count: reports.length, result: reports });
+      }
+
+      /* MD5 / SHA1 — use GET /search/hash */
       const upstream = await fetch(
-        `https://www.hybrid-analysis.com/api/v2/search/hash?hash=${encodeURIComponent(hash.toLowerCase())}`,
+        `https://www.hybrid-analysis.com/api/v2/search/hash?hash=${encodeURIComponent(h)}`,
         { method: 'GET', headers }
       );
-      if (upstream.status === 404 || upstream.status === 400)
-        return res.status(200).json({ count: 0, result: [] });
       if (!upstream.ok) return res.status(200).json({ count: 0, result: [] });
       return res.status(200).json(await upstream.json());
 
