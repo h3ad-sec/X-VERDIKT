@@ -7,7 +7,7 @@
   --border:#1a2238; --nav-h:48px; --hero-h:70px;
   --vt:#ff6b35; --ab:#00c8ff; --otx:#a855f7;
   --us:#06b6d4; --tf:#f43f5e; --uh:#ec4899;
-  --mb:#f59e0b; --ha:#84cc16; --sh:#10b981;
+  --mb:#f59e0b; --ha:#84cc16; --sh:#10b981; --fs:#818cf8;
   --red:#ff3b5c; --yellow:#ffd60a; --green:#00ff9f;
   --mono:'Share Tech Mono',monospace; --sans:'Inter',sans-serif;
   --fs-xs:11px; --fs-sm:13px; --fs-base:15px; --fs-md:16px; --fs-lg:18px;
@@ -310,8 +310,8 @@ body.light .btn-primary{color:#fff;}
 .sbd-note{color:var(--muted);font-size:11px;}
 .sbd-total td{padding:8px 8px 4px;border-top:1px solid var(--border);color:var(--muted);font-size:11px;}
 
-/* Mandatory 3-col intel grid */
-.modal-intel-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;}
+/* Wrapping intel grid — fills columns, wraps to new row when needed */
+.modal-intel-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:14px;}
 .intel-block{background:var(--bg);border:1px solid var(--border);border-radius:4px;padding:14px;}
 .intel-block-title{font-family:var(--mono);font-size:var(--fs-xs);letter-spacing:2px;text-transform:uppercase;margin-bottom:12px;display:flex;align-items:center;gap:8px;}
 .intel-na{font-family:var(--mono);font-size:var(--fs-xs);color:var(--muted);font-style:italic;}
@@ -335,6 +335,14 @@ body.light .btn-primary{color:#fff;}
 .supp-url-item{font-family:var(--mono);font-size:10px;color:var(--muted);padding:2px 0;display:flex;justify-content:space-between;gap:8px;overflow:hidden;}
 .supp-url-item span{color:var(--border);font-size:10px;flex-shrink:0;}
 .supp-url-mal{color:var(--red);}
+
+/* ── Export ──────────────────────────────────────────────────────────────── */
+.btn-export{background:transparent;border:1px solid var(--border);color:var(--muted);font-family:var(--mono);font-size:var(--fs-xs);padding:6px 12px;cursor:pointer;letter-spacing:1px;display:flex;align-items:center;gap:6px;transition:all .15s;margin-left:auto;}
+.btn-export:hover{color:var(--accent2);border-color:var(--accent2);}
+.exp-radio-group{display:flex;flex-wrap:wrap;gap:8px;}
+.exp-radio{display:flex;align-items:center;gap:6px;font-family:var(--mono);font-size:var(--fs-xs);color:var(--text);cursor:pointer;padding:7px 12px;border:1px solid var(--border);border-radius:3px;transition:all .15s;}
+.exp-radio:hover{border-color:var(--accent2);color:var(--accent2);}
+.exp-radio input[type=radio]{accent-color:var(--accent2);cursor:pointer;}
 
 /* ── Footer ─────────────────────────────────────────────────────────────── */
 .site-footer{border-top:1px solid var(--border);margin-top:32px;padding:16px 28px;}

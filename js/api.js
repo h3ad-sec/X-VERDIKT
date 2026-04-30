@@ -133,6 +133,17 @@ const API = {
       return { source: 'shodan', error: `HTTP ${resp.status}` };
     } catch(e) { return { source: 'shodan', error: fmtErr(e) }; }
   },
+
+  async filescan(ioc, signal) {
+    const t = ioc.type;
+    if (!t.startsWith('hash_'))
+      return { source: 'filescan', skipped: true, reason: 'Hash only' };
+    try {
+      const resp = await fetch(`${SERVER_BASE}/api/filescan?hash=${encodeURIComponent(ioc.value)}`, { signal });
+      if (!resp.ok) return { source: 'filescan', error: `HTTP ${resp.status}` };
+      return parseFileScanResponse(await resp.json(), ioc.value);
+    } catch(e) { return { source: 'filescan', error: fmtErr(e) }; }
+  },
 };
 
 
@@ -487,6 +498,31 @@ function parseShodanFullResponse(data) {
     city: data?.city || null, full: true,
     scoreLabel: cves.length > 0 ? `${cves.length} CVE${cves.length > 1 ? 's' : ''}` : ports.length ? `${ports.length} ports` : 'No data',
     link: `https://www.shodan.io/host/${data?.ip_str || ''}`, raw: data,
+  };
+}
+
+/* ── FileScan parser ─────────────────────────────────────────────────────── */
+function parseFileScanResponse(data, iocValue) {
+  const items = data?.items || [];
+  const count = data?.count || items.length;
+  if (!count) return { source: 'filescan', notFound: true, count: 0, raw: data };
+
+  const maxThreatLevel = Math.max(...items.map(i => i.file?.threat_level ?? 0), 0);
+  const maliciousCount = items.filter(i => (i.file?.threat_level ?? 0) >= 7).length;
+  const verdicts = [...new Set(items.flatMap(i => i.file?.verdict ? [i.file.verdict] : []))].slice(0, 3);
+  const families = [...new Set(items.flatMap(i => i.file?.malware_family ? [i.file.malware_family] : []).filter(Boolean))].slice(0, 5);
+
+  return {
+    source: 'filescan',
+    count,
+    maliciousCount,
+    maxThreatLevel,
+    verdicts,
+    families,
+    verdict: maxThreatLevel >= 7 ? 'malicious' : maxThreatLevel >= 4 ? 'suspicious' : 'benign',
+    notFound: false,
+    link: iocValue ? `https://www.filescan.io/search?query=${encodeURIComponent(iocValue)}` : null,
+    raw: data,
   };
 }
 

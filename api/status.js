@@ -14,6 +14,7 @@ export default async function handler(req, res) {
     shodan:          !!process.env.SHODAN_API_KEY,
     abusech:         !!process.env.ABUSECH_AUTH_KEY,
     threatfox:       !!process.env.THREATFOX_API_KEY,
+    filescan:        !!process.env.FILESCAN_API_KEY,
     vt_paid:         process.env.VT_PAID === 'true',
   });
 }

@@ -57,10 +57,10 @@ async function startScan() {
     scanResults.push({
       ioc, vt: null, ab: null, otx: null,
       urlscan: null, threatfox: null, urlhaus: null,
-      mb: null, ha: null, shodan: null,
+      mb: null, ha: null, shodan: null, filescan: null,
       verdict: null, confidence: null, action: null,
       score: null, vtPts: null, abPts: null, mbPts: null, otxPts: null,
-      tfPts: null, usPts: null, uhPts: null, haPts: null,
+      tfPts: null, usPts: null, uhPts: null, haPts: null, fsPts: null,
       reasons: [], indicators: [], flags: [], done: false,
     });
   }
@@ -68,9 +68,6 @@ async function startScan() {
   document.getElementById('results-panel').style.display = '';
   document.getElementById('progress-container').style.display = '';
   setScanBtnState('scanning');
-
-  const rn = document.getElementById('rate-note-text');
-  if (rn) rn.textContent = VtBucket.paid ? 'Parallel · VT Paid — no rate limit' : 'Parallel · VT Free — token bucket (4 req/min)';
 
   renderResultRows(scanResults);
   renderSummary(scanResults);
@@ -103,21 +100,21 @@ async function startScan() {
 }
 
 /* Sources active per IOC type:
-   vt ab otx us tf uh mb ha sh
-   IP:     ✓  ✓  ✓   ✗  ✓  ✗  ✗  ✗  ✓
-   IPv6:   ✓  ✓  ✓   ✗  ✓  ✗  ✗  ✗  ✗
-   Hash:   ✓  ✗  ✓   ✗  ✓  ✗  ✓  ✓  ✗
-   Domain: ✓  ✗  ✓   ✓  ✓  ✗  ✗  ✗  ✗
-   URL:    ✓  ✗  ✓   ✓  ✗  ✓  ✗  ✗  ✗  */
+   vt ab otx us tf uh mb ha sh fs
+   IP:     ✓  ✓  ✓   ✗  ✓  ✗  ✗  ✗  ✓  ✗
+   IPv6:   ✓  ✓  ✓   ✗  ✓  ✗  ✗  ✗  ✗  ✗
+   Hash:   ✓  ✗  ✓   ✗  ✓  ✗  ✓  ✓  ✗  ✓
+   Domain: ✓  ✗  ✓   ✓  ✓  ✗  ✗  ✗  ✗  ✗
+   URL:    ✓  ✗  ✓   ✓  ✗  ✓  ✗  ✗  ✗  ✗  */
 const TYPE_SOURCES = {
-  ip:          { ab:1, us:0, tf:1, uh:0, mb:0, ha:0, sh:1 },
-  ipv6:        { ab:1, us:0, tf:1, uh:0, mb:0, ha:0, sh:0 },
-  hash_md5:    { ab:0, us:0, tf:1, uh:0, mb:1, ha:1, sh:0 },
-  hash_sha1:   { ab:0, us:0, tf:1, uh:0, mb:1, ha:1, sh:0 },
-  hash_sha256: { ab:0, us:0, tf:1, uh:0, mb:1, ha:1, sh:0 },
-  hash_sha512: { ab:0, us:0, tf:1, uh:0, mb:1, ha:0, sh:0 },
-  domain:      { ab:0, us:1, tf:1, uh:0, mb:0, ha:0, sh:0 },
-  url:         { ab:0, us:1, tf:0, uh:1, mb:0, ha:0, sh:0 },
+  ip:          { ab:1, us:0, tf:1, uh:0, mb:0, ha:0, sh:1, fs:0 },
+  ipv6:        { ab:1, us:0, tf:1, uh:0, mb:0, ha:0, sh:0, fs:0 },
+  hash_md5:    { ab:0, us:0, tf:1, uh:0, mb:1, ha:1, sh:0, fs:1 },
+  hash_sha1:   { ab:0, us:0, tf:1, uh:0, mb:1, ha:1, sh:0, fs:1 },
+  hash_sha256: { ab:0, us:0, tf:1, uh:0, mb:1, ha:1, sh:0, fs:1 },
+  hash_sha512: { ab:0, us:0, tf:1, uh:0, mb:1, ha:0, sh:0, fs:1 },
+  domain:      { ab:0, us:1, tf:1, uh:0, mb:0, ha:0, sh:0, fs:0 },
+  url:         { ab:0, us:1, tf:0, uh:1, mb:0, ha:0, sh:0, fs:0 },
 };
 
 async function runParallelScan(entry) {
@@ -149,22 +146,23 @@ async function runParallelScan(entry) {
   const mbP  = m.mb ? fetchWithRetry(sig => API.malwarebazaar(ioc, sig)).catch(e => ({ source: 'malwarebazaar', skipped: true, reason: e.message })) : off('malwarebazaar');
   const haP  = m.ha ? fetchWithRetry(sig => API.hybridanalysis(ioc, sig)).catch(e => ({ source: 'hybridanalysis', error: e.message })) : off('hybridanalysis');
   const shP  = m.sh ? fetchWithRetry(sig => API.shodan(ioc, sig))    .catch(e => ({ source: 'shodan',       error: e.message })) : off('shodan');
+  const fsP  = m.fs ? fetchWithRetry(sig => API.filescan(ioc, sig))  .catch(e => ({ source: 'filescan',     error: e.message })) : off('filescan');
 
-  const [vt, ab, otx, urlscan, threatfox, urlhaus, mb, ha, shodan] =
-    await Promise.all([vtP, abP, otxP, usP, tfP, uhP, mbP, haP, shP]);
+  const [vt, ab, otx, urlscan, threatfox, urlhaus, mb, ha, shodan, filescan] =
+    await Promise.all([vtP, abP, otxP, usP, tfP, uhP, mbP, haP, shP, fsP]);
 
   entry.vt = vt; entry.ab = ab; entry.otx = otx;
   entry.urlscan = urlscan; entry.threatfox = threatfox; entry.urlhaus = urlhaus;
-  entry.mb = mb; entry.ha = ha; entry.shodan = shodan;
+  entry.mb = mb; entry.ha = ha; entry.shodan = shodan; entry.filescan = filescan;
 }
 
 /* Scoring weights:
    IP:     VT(30) + AbuseIPDB(40) + OTX(10) + ThreatFox(20) = 100
-   Hash:   VT(30) + MB(20)        + OTX(10) + ThreatFox(20) + HA(20) = 100
+   Hash:   VT(25) + MB(10)        + OTX(10) + ThreatFox(10) + HA(20) + FileScan(25) = 100
    Domain: VT(50) + URLScan(20)   + OTX(10) + ThreatFox(20) = 100
    URL:    VT(50) + URLScan(20)   + OTX(10) + URLhaus(20)   = 100  */
 function scoreEntry(entry) {
-  const { vt, ab, otx, urlscan, threatfox, urlhaus, mb, ha, shodan } = entry;
+  const { vt, ab, otx, urlscan, threatfox, urlhaus, mb, ha, shodan, filescan } = entry;
   const t       = entry.ioc.type;
   const iocIsIP   = t === 'ip' || t === 'ipv6';
   const iocIsHash = t.startsWith('hash_');
@@ -172,12 +170,12 @@ function scoreEntry(entry) {
   const iocIsUrl  = t === 'url';
 
   let vtPts = 0, abPts = 0, mbPts = 0, otxPts = 0;
-  let tfPts = 0, usPts = 0, uhPts = 0, haPts = 0;
+  let tfPts = 0, usPts = 0, uhPts = 0, haPts = 0, fsPts = 0;
   let sourcesChecked = 0;
   const reasons = [], indicators = [], flags = [];
 
-  /* VT — max 30 (IP/hash) or 50 (domain/url) */
-  const vtMax = (iocIsIP || iocIsHash) ? 30 : 50;
+  /* VT — max 30 (IP), 25 (hash), 50 (domain/url) */
+  const vtMax = iocIsIP ? 30 : iocIsHash ? 25 : 50;
   if (vt && !vt.skipped && !vt.error) {
     const mal = vt.malicious || 0, total = vt.total || 0;
     if (total > 0) {
@@ -209,14 +207,17 @@ function scoreEntry(entry) {
     }
   }
 
-  /* ThreatFox — max 20 (IP/hash/domain); scoring source */
+  /* ThreatFox — max 20 (IP/domain), max 10 (hash); scoring source */
   const tfHit = threatfox && !threatfox.skipped && !threatfox.error && !threatfox.notFound && (threatfox.iocCount || 0) > 0;
   if (tfHit) {
     indicators.push(`ThreatFox: ${threatfox.iocCount} C2`);
     reasons.push(`ThreatFox: ${threatfox.iocCount} C2 indicator${threatfox.iocCount > 1 ? 's' : ''}`);
-    if (iocIsIP || iocIsHash || iocIsDom) {
+    if (iocIsIP || iocIsDom) {
       sourcesChecked++;
       tfPts = Math.min(20, Math.round((threatfox.maxConfidence || 100) / 100 * 20));
+    } else if (iocIsHash) {
+      sourcesChecked++;
+      tfPts = Math.min(10, Math.round((threatfox.maxConfidence || 100) / 100 * 10));
     }
   }
 
@@ -247,11 +248,11 @@ function scoreEntry(entry) {
     }
   }
 
-  /* MalwareBazaar — max 20 (hash only) */
+  /* MalwareBazaar — max 10 (hash only) */
   const mbHit = mb && !mb.skipped && !mb.error && !mb.notFound && (mb.count || 0) > 0;
   if (iocIsHash && mbHit) {
     sourcesChecked++;
-    mbPts = 20;
+    mbPts = 10;
     indicators.push(`MalwareBazaar: ${mb.count} sample${mb.count > 1 ? 's' : ''}`);
     reasons.push(`Found in MalwareBazaar${mb.families?.length ? ` (${mb.families[0]})` : ''}`);
   }
@@ -267,6 +268,16 @@ function scoreEntry(entry) {
       reasons.push(`HybridAnalysis: malicious sandbox result`);
   }
 
+  /* FileScan — max 25 (hash only) */
+  const fsHit = filescan && !filescan.skipped && !filescan.error && !filescan.notFound && (filescan.count || 0) > 0;
+  if (iocIsHash && fsHit) {
+    sourcesChecked++;
+    fsPts = Math.min(25, Math.round((filescan.maxThreatLevel || 0) / 10 * 25));
+    indicators.push(`FileScan: ${filescan.count} report${filescan.count !== 1 ? 's' : ''} (TL:${filescan.maxThreatLevel})`);
+    if ((filescan.maxThreatLevel || 0) >= 7)
+      reasons.push(`FileScan: ${filescan.maliciousCount || filescan.count} malicious scan${(filescan.maliciousCount || filescan.count) !== 1 ? 's' : ''}`);
+  }
+
   /* Shodan — supplementary flags only */
   const shCve = shodan && !shodan.skipped && !shodan.error && (shodan.cves?.length || 0) > 0;
   const shTag = shodan && !shodan.skipped && !shodan.error && shodan.tags?.some(tag => ['tor','honeypot','malware'].includes(tag));
@@ -276,7 +287,7 @@ function scoreEntry(entry) {
   /* Score */
   let score;
   if      (iocIsIP)   score = Math.min(100, vtPts + abPts  + otxPts + tfPts);
-  else if (iocIsHash) score = Math.min(100, vtPts + mbPts  + otxPts + tfPts + haPts);
+  else if (iocIsHash) score = Math.min(100, vtPts + mbPts  + otxPts + tfPts + haPts + fsPts);
   else if (iocIsDom)  score = Math.min(100, vtPts + usPts  + otxPts + tfPts);
   else                score = Math.min(100, vtPts + usPts  + otxPts + uhPts);
 
@@ -304,7 +315,7 @@ function scoreEntry(entry) {
     reasons.push(sourcesChecked === 0 ? 'Sources pending or unavailable' : 'No threat signals detected');
 
   return {
-    score, vtPts, abPts, mbPts, otxPts, tfPts, usPts, uhPts, haPts,
+    score, vtPts, abPts, mbPts, otxPts, tfPts, usPts, uhPts, haPts, fsPts,
     verdict, confidence, action,
     reasons: reasons.slice(0, 3),
     indicators: indicators.slice(0, 6),
