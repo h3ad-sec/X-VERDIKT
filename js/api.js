@@ -68,7 +68,7 @@ const API = {
     try {
       const resp = await fetch(`${SERVER_BASE}/api/urlscan?q=${encodeURIComponent(q)}`, { signal });
       if (!resp.ok) return { source: 'urlscan', error: `HTTP ${resp.status}` };
-      return parseURLScanResponse(await resp.json());
+      return parseURLScanResponse(await resp.json(), q);
     } catch(e) { return { source: 'urlscan', error: fmtErr(e) }; }
   },
 
@@ -76,7 +76,7 @@ const API = {
     try {
       const resp = await fetch(`${SERVER_BASE}/api/threatfox?q=${encodeURIComponent(ioc.value)}`, { signal });
       if (!resp.ok) return { source: 'threatfox', error: `HTTP ${resp.status}` };
-      return parseThreatFoxResponse(await resp.json());
+      return parseThreatFoxResponse(await resp.json(), ioc.value);
     } catch(e) { return { source: 'threatfox', error: fmtErr(e) }; }
   },
 
@@ -91,7 +91,7 @@ const API = {
     try {
       const resp = await fetch(`${SERVER_BASE}/api/urlhaus?${param}`, { signal });
       if (!resp.ok) return { source: 'urlhaus', error: `HTTP ${resp.status}` };
-      return parseURLhausResponse(await resp.json(), t);
+      return parseURLhausResponse(await resp.json(), t, ioc.value);
     } catch(e) { return { source: 'urlhaus', error: fmtErr(e) }; }
   },
 
@@ -99,7 +99,7 @@ const API = {
     const t = ioc.type;
     let param;
     if (t.startsWith('hash_')) param = `hash=${encodeURIComponent(ioc.value)}`;
-    else if (t === 'ip')       param = `tag=${encodeURIComponent(ioc.value)}`;
+    else if (t === 'ip' || t === 'ipv6') param = `tag=${encodeURIComponent(ioc.value)}`;
     else return { source: 'malwarebazaar', skipped: true, reason: 'IP/hash only' };
     try {
       const resp = await fetch(`${SERVER_BASE}/api/malwarebazaar?${param}`, { signal });
@@ -287,7 +287,7 @@ function parseAbuseIPDBResponse(data) {
 }
 
 /* ── URLScan parser ──────────────────────────────────────────────────────── */
-function parseURLScanResponse(data) {
+function parseURLScanResponse(data, searchQ) {
   const results = data?.results || [];
   const total = data?.total || results.length;
   if (!total && !results.length) return { source: 'urlscan', notFound: true, total: 0, results: [], maliciousCount: 0 };
@@ -298,11 +298,15 @@ function parseURLScanResponse(data) {
     date: r.task?.time?.split('T')[0] || '',
     malicious: r.verdicts?.overall?.malicious || false,
   }));
-  return { source: 'urlscan', total, maliciousCount, recent, notFound: false, raw: data };
+  return {
+    source: 'urlscan', total, maliciousCount, recent, notFound: false,
+    link: searchQ ? `https://urlscan.io/search/#${encodeURIComponent(searchQ)}` : null,
+    raw: data,
+  };
 }
 
 /* ── ThreatFox parser ────────────────────────────────────────────────────── */
-function parseThreatFoxResponse(data) {
+function parseThreatFoxResponse(data, iocValue) {
   if (data?.query_status === 'no_result' || !data?.data?.length)
     return { source: 'threatfox', notFound: true, iocCount: 0, raw: data };
   const iocs = data.data || [];
@@ -315,12 +319,15 @@ function parseThreatFoxResponse(data) {
     notFound: false,
     firstSeen: iocs[0]?.first_seen?.split(' ')[0] || null,
     lastSeen: iocs[0]?.last_seen?.split(' ')[0] || null,
+    link: iocValue ? `https://threatfox.abuse.ch/browse.php?search=${encodeURIComponent(iocValue)}` : null,
     raw: data,
   };
 }
 
 /* ── URLhaus parsers ─────────────────────────────────────────────────────── */
-function parseURLhausResponse(data, iocType) {
+function parseURLhausResponse(data, iocType, iocValue) {
+  const uhLink = iocValue ? `https://urlhaus.abuse.ch/browse.php?search=${encodeURIComponent(iocValue)}` : null;
+
   if (iocType === 'url') {
     if (!data?.id || data?.query_status === 'no_results')
       return { source: 'urlhaus', notFound: true, urlsCount: 0, raw: data };
@@ -332,6 +339,7 @@ function parseURLhausResponse(data, iocType) {
       notFound: false,
       tags: data.tags || [],
       dateAdded: data.date_added?.split(' ')[0] || null,
+      link: data.id ? `https://urlhaus.abuse.ch/url/${data.id}/` : uhLink,
       raw: data,
     };
   }
@@ -347,6 +355,7 @@ function parseURLhausResponse(data, iocType) {
       notFound: false,
       tags: data.tags || [],
       dateAdded: data.firstseen?.split(' ')[0] || null,
+      link: uhLink,
       raw: data,
     };
   }
@@ -362,6 +371,7 @@ function parseURLhausResponse(data, iocType) {
     threats: [...new Set(urls.map(u => u.threat).filter(Boolean))],
     notFound: false, tags: data?.tags || [],
     dateAdded: urls[0]?.date_added?.split(' ')[0] || null,
+    link: uhLink,
     raw: data,
   };
 }
@@ -379,6 +389,7 @@ function parseMBResponse(data, iocType) {
       fileName: item.file_name || null,
       fileType: item.file_type_mime || null,
       firstSeen: item.first_seen?.split(' ')[0] || null,
+      link: item.sha256_hash ? `https://bazaar.abuse.ch/sample/${item.sha256_hash}/` : null,
       notFound: false,
       raw: data,
     };
@@ -455,6 +466,7 @@ function parseHybridAnalysisResponse(data) {
     sha256: ov.sha256 || topReport?.sha256 || null,
     md5:    ov.md5    || topReport?.md5    || null,
     sha1:   ov.sha1   || topReport?.sha1   || null,
+    link: (ov.sha256 || topReport?.sha256) ? `https://www.hybrid-analysis.com/sample/${ov.sha256 || topReport.sha256}` : null,
     notFound: false, raw: data,
   };
 }
