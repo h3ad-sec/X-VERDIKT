@@ -397,26 +397,37 @@ function parseMBResponse(data, iocType) {
 
 /* ── HybridAnalysis parser ───────────────────────────────────────────────── */
 function parseHybridAnalysisResponse(data) {
-  /* GET /search/hash → array or {result:[]}; POST /search/terms → {count, result:[]} */
+  /* overview proxy → {count, result:[reports], sha256, md5, ...top-level fields}
+     search/hash GET → array; search/terms POST → {count, result:[]} */
   const results = Array.isArray(data)
     ? data
     : (data?.result || data?.results || data?.reports || []);
-  if (!results.length) return { source: 'hybridanalysis', notFound: true, count: 0, raw: data };
+
+  /* Top-level overview fields (present when proxy used /overview/{sha256}) */
+  const ov = Array.isArray(data) ? {} : data;
+
+  /* Need at least results OR top-level verdict to consider it a hit */
+  if (!results.length && !ov.verdict && !ov.sha256)
+    return { source: 'hybridanalysis', notFound: true, count: 0, raw: data };
 
   const maliciousCount = results.filter(r => r.verdict === 'malicious' || (r.threat_level || 0) >= 2).length;
-  const maxScore = Math.max(...results.map(r => r.threat_score || 0), 0);
+  const rawMaxScore    = Math.max(...results.map(r => r.threat_score || 0), ov.threat_score || 0);
+  const maxScore       = rawMaxScore > 0 ? rawMaxScore : null;
 
   const topReport = results.find(r => (r.threat_level || 0) >= 2)
     || results.find(r => (r.threat_level || 0) >= 1)
-    || results[0];
+    || results[0] || {};
 
-  const families = [...new Set(
-    results.slice(0, 8).flatMap(r => [r.vx_family, r.malware_family].filter(Boolean))
-  )].slice(0, 5);
+  /* Merge overview-level family/tags with per-report values */
+  const families = [...new Set([
+    ov.vx_family, ov.malware_family,
+    ...results.slice(0, 8).flatMap(r => [r.vx_family, r.malware_family]),
+  ].filter(Boolean))].slice(0, 5);
 
-  const tags = [...new Set(
-    results.slice(0, 5).flatMap(r => r.classification_tags || []).filter(Boolean)
-  )].slice(0, 8);
+  const tags = [...new Set([
+    ...(ov.classification_tags || []),
+    ...results.slice(0, 5).flatMap(r => r.classification_tags || []),
+  ].filter(Boolean))].slice(0, 10);
 
   const environments = [...new Set(
     results.map(r => r.environment_description).filter(Boolean)
@@ -426,18 +437,24 @@ function parseHybridAnalysisResponse(data) {
     results.map(r => r.submit_name).filter(Boolean)
   )].slice(0, 3);
 
-  const fileTypes = [...new Set(
-    results.flatMap(r => r.type_short || []).filter(Boolean)
-  )].slice(0, 3);
+  const fileTypes = [...new Set([
+    ...(ov.type_short || []),
+    ...results.flatMap(r => r.type_short || []),
+  ].filter(Boolean))].slice(0, 3);
+
+  const size = ov.size
+    ? (ov.size >= 1048576 ? `${(ov.size/1048576).toFixed(1)} MB` : `${(ov.size/1024).toFixed(1)} KB`)
+    : null;
 
   return {
     source: 'hybridanalysis',
-    count: results.length, maliciousCount, maxScore,
-    verdict: topReport?.verdict || null,
-    families, tags, environments, submitNames, fileTypes,
-    sha256: topReport?.sha256 || null,
-    md5:    topReport?.md5    || null,
-    sha1:   topReport?.sha1   || null,
+    count: results.length || (ov.sha256 ? 1 : 0),
+    maliciousCount, maxScore,
+    verdict:  ov.verdict  || topReport?.verdict  || null,
+    families, tags, environments, submitNames, fileTypes, size,
+    sha256: ov.sha256 || topReport?.sha256 || null,
+    md5:    ov.md5    || topReport?.md5    || null,
+    sha1:   ov.sha1   || topReport?.sha1   || null,
     notFound: false, raw: data,
   };
 }

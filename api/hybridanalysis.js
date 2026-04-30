@@ -42,8 +42,23 @@ export default async function handler(req, res) {
         );
         if (!upstream.ok) return res.status(200).json({ count: 0, result: [] });
         const data = await upstream.json();
-        const reports = (data.reports?.length) ? data.reports : [data];
-        return res.status(200).json({ count: reports.length, result: reports });
+        const reports = (data.reports?.length) ? data.reports : [];
+        /* Attach overview-level fields (sha256, md5, sha1, tags, type) to the response
+           so the parser can read them — sub-reports don't carry these fields */
+        return res.status(200).json({
+          count: reports.length,
+          result: reports,
+          sha256:              data.sha256              || null,
+          md5:                 data.md5                 || null,
+          sha1:                data.sha1                || null,
+          verdict:             data.verdict             || null,
+          threat_score:        data.threat_score        || null,
+          vx_family:           data.vx_family           || null,
+          malware_family:      data.malware_family      || null,
+          classification_tags: data.classification_tags || [],
+          type_short:          data.type_short          || [],
+          size:                data.size                || null,
+        });
       }
 
       /* MD5 / SHA1 — use GET /search/hash */
