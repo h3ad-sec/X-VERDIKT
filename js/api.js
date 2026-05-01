@@ -329,7 +329,7 @@ function parseThreatFoxResponse(data, iocValue) {
     notFound: false,
     firstSeen: iocs[0]?.first_seen?.split(' ')[0] || null,
     lastSeen: iocs[0]?.last_seen?.split(' ')[0] || null,
-    link: iocValue ? `https://threatfox.abuse.ch/browse.php?q=${encodeURIComponent(iocValue)}` : null,
+    link: iocValue ? `https://threatfox.abuse.ch/browse.php?search=${encodeURIComponent('ioc:' + iocValue)}` : null,
     raw: data,
   };
 }
