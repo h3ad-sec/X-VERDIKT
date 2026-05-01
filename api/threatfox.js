@@ -6,7 +6,7 @@ export default async function handler(req, res) {
   if (req.method === 'OPTIONS') return res.status(200).end();
   if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' });
 
-  const { q } = req.query;
+  const { q, type } = req.query;
   if (!q) return res.status(400).json({ error: 'Missing q parameter' });
 
   const headers = {
@@ -15,27 +15,36 @@ export default async function handler(req, res) {
   };
   const EMPTY = { query_status: 'no_result', data: [] };
 
+  const tfIocTypeMap = {
+    ip: 'ip:port', ipv6: 'ip:port',
+    domain: 'domain', url: 'url',
+    hash_md5: 'md5_hash', hash_sha256: 'sha256_hash',
+    hash_sha1: 'sha1_hash', hash_sha512: 'sha512_hash',
+  };
+
   async function tfPost(body) {
     const r = await fetch('https://threatfox-api.abuse.ch/api/v1/', {
       method: 'POST', headers, body: JSON.stringify(body),
     });
-    if (r.status === 401) return null;          // no key / key invalid
+    if (r.status === 401) return null;
     if (!r.ok) return null;
     return r.json();
   }
 
   try {
-    const isMd5    = /^[0-9a-fA-F]{32}$/.test(q);
-    const isSha256 = /^[0-9a-fA-F]{64}$/.test(q);
+    const isHashMd5    = type === 'hash_md5'    || (!type && /^[0-9a-fA-F]{32}$/.test(q));
+    const isHashSha256 = type === 'hash_sha256' || (!type && /^[0-9a-fA-F]{64}$/.test(q));
 
     let data = null;
-    if (isMd5 || isSha256) {
-      /* Try search_hash first; fall back to search_ioc if ThreatFox rejects it */
+    if (isHashMd5 || isHashSha256) {
       data = await tfPost({ query: 'search_hash', hash: q.toLowerCase() });
       if (!data || data.query_status === 'illegal_query')
         data = await tfPost({ query: 'search_ioc', search_term: q.toLowerCase() });
     } else {
-      data = await tfPost({ query: 'search_ioc', search_term: q });
+      const body = { query: 'search_ioc', search_term: q };
+      const tfType = tfIocTypeMap[type];
+      if (tfType) body.ioc_type = tfType;
+      data = await tfPost(body);
     }
 
     return res.status(200).json(data ?? EMPTY);

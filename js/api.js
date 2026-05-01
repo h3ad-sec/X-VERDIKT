@@ -74,7 +74,7 @@ const API = {
 
   async threatfox(ioc, signal) {
     try {
-      const resp = await fetch(`${SERVER_BASE}/api/threatfox?q=${encodeURIComponent(ioc.value)}`, { signal });
+      const resp = await fetch(`${SERVER_BASE}/api/threatfox?q=${encodeURIComponent(ioc.value)}&type=${ioc.type}`, { signal });
       if (!resp.ok) return { source: 'threatfox', error: `HTTP ${resp.status}` };
       return parseThreatFoxResponse(await resp.json(), ioc.value);
     } catch(e) { return { source: 'threatfox', error: fmtErr(e) }; }
@@ -254,7 +254,6 @@ function parseOTXResponse(data, iocType, iocValue) {
 
   const otxSection = { ip: 'ip', ipv6: 'ipv6', domain: 'domain', url: 'url' };
   const linkBase = otxSection[iocType] || 'file';
-  const encVal = iocType === 'url' ? encodeURIComponent(iocValue) : iocValue;
 
   return {
     source: 'otx',
@@ -268,7 +267,7 @@ function parseOTXResponse(data, iocType, iocValue) {
     tags: [...new Set(tags)].slice(0, 8),
     adversaries: [...new Set(adversaries)].slice(0, 3),
     recentPulse: pulses[0]?.name || null,
-    link: `https://otx.alienvault.com/indicator/${linkBase}/${encVal}`,
+    link: `https://otx.alienvault.com/indicator/${linkBase}/${iocValue}`,
     raw: data,
   };
 }
