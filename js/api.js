@@ -267,7 +267,7 @@ function parseOTXResponse(data, iocType, iocValue) {
     tags: [...new Set(tags)].slice(0, 8),
     adversaries: [...new Set(adversaries)].slice(0, 3),
     recentPulse: pulses[0]?.name || null,
-    link: `https://otx.alienvault.com/indicator/${linkBase}/${iocValue}`,
+    link: `https://otx.alienvault.com/indicator/${linkBase}/${iocType === 'url' ? encodeURI(iocValue) : iocValue}`,
     raw: data,
   };
 }
