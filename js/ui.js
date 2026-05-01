@@ -2,6 +2,7 @@
 let currentVerdictFilter = 'all';
 let currentTypeFilter    = 'all';
 let currentSearch        = '';
+let _currentModalEntry   = null;
 
 const TYPE_BADGES = {
   ip:          '<span class="type-badge type-ip">IPv4</span>',
@@ -267,12 +268,153 @@ function setServerStatusDots(status) {
 function openModal(i) {
   const entry = scanResults[i];
   if (!entry) return;
+  _currentModalEntry = entry;
   document.getElementById('modal-title').innerHTML = buildModalTitle(entry);
   document.getElementById('modal-body').innerHTML  = buildModalContent(entry);
   document.getElementById('modal-overlay').classList.add('open');
 }
 
 function closeModal() { document.getElementById('modal-overlay')?.classList.remove('open'); }
+
+function buildIPHighlightsCard(entry) {
+  const { vt, ab, otx } = entry;
+  const vtOk  = vt  && !vt.skipped  && !vt.error;
+  const abOk  = ab  && !ab.skipped  && !ab.error;
+  const otxOk = otx && !otx.skipped && !otx.error;
+
+  const vtContent = vtOk ? `
+    <div class="modal-kv-grid">
+      ${kv('IP', vt.ip)}
+      ${kv('ASN', vt.asn != null ? 'AS' + vt.asn : null)}
+      ${kv('AS Owner', vt.as_owner)}
+      ${kv('Country', vt.country)}
+      ${kv('Reputation', vt.reputation != null ? String(vt.reputation) : null, vt.reputation < 0 ? 'var(--red)' : vt.reputation > 0 ? 'var(--accent)' : null)}
+      ${kv('Detections', `${vt.malicious||0}/${vt.total||0} engines`, vt.malicious > 0 ? 'var(--red)' : 'var(--accent)')}
+      ${kv('Network', vt.network)}
+      ${kv('JARM', vt.jarm ? truncate(vt.jarm, 32) : null)}
+      ${vt.tags?.length ? kv('Tags', vt.tags.join(', ')) : ''}
+    </div>
+    ${(vt.cert_subject_cn || vt.cert_issuer_cn) ? `
+      <div class="intel-sub-label" style="margin-top:8px">TLS CERTIFICATE</div>
+      <div class="modal-kv-grid">
+        ${kv('Subject CN', vt.cert_subject_cn)}
+        ${kv('Issuer CN', vt.cert_issuer_cn)}
+        ${kv('Self-signed', vt.cert_self_signed)}
+        ${kv('Valid Until', vt.cert_valid_until)}
+        ${kv('SHA-256', vt.cert_thumbprint ? truncate(vt.cert_thumbprint, 32) : null)}
+      </div>` : ''}` : '<div class="intel-na">-</div>';
+
+  const abContent = abOk ? `
+    <div class="modal-kv-grid">
+      ${kv('IP Address', ab.ipAddress)}
+      ${kv('IP Version', ab.ipVersion != null ? 'IPv' + ab.ipVersion : null)}
+      ${kv('Is Public', ab.isPublic)}
+      ${kv('Whitelisted', ab.isWhitelisted)}
+      ${kv('Abuse Score', `${ab.score||0}%`, ab.score >= 75 ? 'var(--red)' : ab.score >= 25 ? 'var(--yellow)' : 'var(--accent)')}
+      ${kv('Usage Type', ab.usageType)}
+      ${kv('ISP', ab.isp)}
+      ${kv('Domain', ab.domain)}
+      ${kv('Hostnames', ab.hostnames?.length ? ab.hostnames.slice(0, 4).join(', ') : null)}
+      ${kv('Is Tor', ab.isTor)}
+    </div>` : '<div class="intel-na">-</div>';
+
+  const otxContent = otxOk ? `
+    <div class="modal-kv-grid">
+      ${kv('Pulse Count', String(otx.pulseCount), otx.pulseCount >= 5 ? 'var(--red)' : otx.pulseCount >= 1 ? 'var(--yellow)' : 'var(--accent)')}
+      ${kv('Subscribers', String(otx.subscriberCount || 0))}
+      ${kv('Indicator Count', String(otx.indicatorCount || 0))}
+      ${kv('Validation', otx.validation)}
+      ${kv('Pulse Sources', otx.pulseSources?.length ? otx.pulseSources.join(', ') : null)}
+      ${kv('Recent Pulse', otx.recentPulse ? truncate(otx.recentPulse, 44) : null)}
+    </div>` : '<div class="intel-na">-</div>';
+
+  return `<div class="ip-highlight-card">
+    <div class="iph-header">
+      <span class="iph-title">IP INTELLIGENCE HIGHLIGHTS</span>
+      <button class="iph-copy-btn" onclick="copyIPHighlights()">&#x29C9; COPY</button>
+    </div>
+    <div class="iph-grid">
+      <div class="iph-col">
+        <div class="iph-col-title" style="color:var(--vt)">VIRUSTOTAL</div>
+        ${vtContent}
+      </div>
+      <div class="iph-col">
+        <div class="iph-col-title" style="color:var(--ab)">ABUSEIPDB</div>
+        ${abContent}
+      </div>
+      <div class="iph-col">
+        <div class="iph-col-title" style="color:var(--otx)">OTX SIGNAL QUALITY</div>
+        ${otxContent}
+      </div>
+    </div>
+  </div>`;
+}
+
+window.copyIPHighlights = function() {
+  const e = _currentModalEntry;
+  if (!e) return;
+  const { vt, ab, otx, ioc, verdict, score, confidence } = e;
+  const f = v => (v == null || v === '') ? '-' : String(v);
+  const lines = [
+    '=== IP INTELLIGENCE HIGHLIGHTS ===',
+    `IOC: ${ioc.value} | VERDICT: ${(verdict||'').toUpperCase()} | SCORE: ${score ?? '-'}/100 | CONFIDENCE: ${(confidence||'-').toUpperCase()}`,
+    '',
+    '[VIRUSTOTAL]',
+  ];
+  if (vt && !vt.skipped && !vt.error) {
+    lines.push(
+      `IP: ${f(vt.ip)}`,
+      `ASN: ${vt.asn != null ? 'AS' + vt.asn : '-'}`,
+      `AS Owner: ${f(vt.as_owner)}`,
+      `Country: ${f(vt.country)}`,
+      `Reputation: ${f(vt.reputation)}`,
+      `Detections: ${vt.malicious||0}/${vt.total||0} engines (${vt.suspicious||0} suspicious)`,
+      `Network: ${f(vt.network)}`,
+      `JARM: ${f(vt.jarm)}`,
+      `Tags: ${vt.tags?.length ? vt.tags.join(', ') : '-'}`,
+    );
+    if (vt.cert_subject_cn || vt.cert_issuer_cn) {
+      lines.push(
+        'TLS Certificate:',
+        `  Subject CN: ${f(vt.cert_subject_cn)}`,
+        `  Issuer CN: ${f(vt.cert_issuer_cn)}`,
+        `  Self-signed: ${f(vt.cert_self_signed)}`,
+        `  Valid Until: ${f(vt.cert_valid_until)}`,
+        `  SHA-256: ${f(vt.cert_thumbprint)}`,
+      );
+    }
+  } else lines.push(vt?.error ? `Error: ${vt.error}` : '-');
+
+  lines.push('', '[ABUSEIPDB]');
+  if (ab && !ab.skipped && !ab.error) {
+    lines.push(
+      `IP Address: ${f(ab.ipAddress)}`,
+      `IP Version: ${ab.ipVersion != null ? 'IPv' + ab.ipVersion : '-'}`,
+      `Is Public: ${f(ab.isPublic)}`,
+      `Whitelisted: ${f(ab.isWhitelisted)}`,
+      `Abuse Score: ${ab.score||0}%`,
+      `Usage Type: ${f(ab.usageType)}`,
+      `ISP: ${f(ab.isp)}`,
+      `Domain: ${f(ab.domain)}`,
+      `Hostnames: ${ab.hostnames?.length ? ab.hostnames.join(', ') : '-'}`,
+      `Is Tor: ${f(ab.isTor)}`,
+    );
+  } else lines.push(ab?.error ? `Error: ${ab.error}` : '-');
+
+  lines.push('', '[OTX SIGNAL QUALITY]');
+  if (otx && !otx.skipped && !otx.error) {
+    lines.push(
+      `Pulse Count: ${otx.pulseCount||0}`,
+      `Subscriber Count: ${otx.subscriberCount||0}`,
+      `Indicator Count: ${otx.indicatorCount||0}`,
+      `Validation: ${f(otx.validation)}`,
+      `Pulse Sources: ${otx.pulseSources?.length ? otx.pulseSources.join(', ') : '-'}`,
+      `Recent Pulse: ${f(otx.recentPulse)}`,
+    );
+  } else lines.push(otx?.error ? `Error: ${otx.error}` : '-');
+
+  copyToClipboard(lines.join('\n'));
+};
 
 function buildModalTitle(entry) {
   const vMap = { malicious: 'var(--red)', suspicious: 'var(--yellow)', benign: 'var(--accent)', unknown: 'var(--muted)' };
@@ -364,6 +506,7 @@ function buildModalContent(entry) {
 
   /* Primary intel - all sources relevant to this IOC type (Shodan only stays supplementary) */
   if (iocIsIP) {
+    parts.push(buildIPHighlightsCard(entry));
     parts.push(`<div class="modal-intel-grid">
       ${buildVTBlock(vt, iocType)}
       ${buildAbuseIPDBBlock(ab, iocType)}

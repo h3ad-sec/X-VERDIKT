@@ -16,9 +16,9 @@ function rowToFlat(entry) {
   const srcVal = (src, fn) => {
     if (!src || src.skipped) return '-';
     if (src.error) return `Error: ${src.error}`;
-    return fn(src) || '';
+    return fn(src) ?? '-';
   };
-  return {
+  const base = {
     'IOC':           entry.ioc.value,
     'Type':          entry.ioc.label,
     'Verdict':       entry.verdict    || '',
@@ -37,6 +37,40 @@ function rowToFlat(entry) {
     'Shodan':        srcVal(entry.shodan,      s => s.cves?.length ? `${s.cves.length} CVEs` : `${s.ports?.length||0} ports`),
     'Flags':         (entry.flags   || []).join(', '),
     'Reasons':       (entry.reasons || []).join(' | '),
+  };
+  const isIP = entry.ioc.type === 'ip' || entry.ioc.type === 'ipv6';
+  if (!isIP) return base;
+  return {
+    ...base,
+    'VT_IP':              srcVal(entry.vt, s => s.ip),
+    'VT_ASN':             srcVal(entry.vt, s => s.asn != null ? 'AS' + s.asn : null),
+    'VT_AS_Owner':        srcVal(entry.vt, s => s.as_owner),
+    'VT_Country':         srcVal(entry.vt, s => s.country),
+    'VT_Reputation':      srcVal(entry.vt, s => s.reputation != null ? String(s.reputation) : null),
+    'VT_Detections':      srcVal(entry.vt, s => `${s.malicious||0}/${s.total||0} engines`),
+    'VT_Network':         srcVal(entry.vt, s => s.network),
+    'VT_JARM':            srcVal(entry.vt, s => s.jarm),
+    'VT_Tags':            srcVal(entry.vt, s => s.tags?.join('; ')),
+    'VT_Cert_SubjectCN':  srcVal(entry.vt, s => s.cert_subject_cn),
+    'VT_Cert_IssuerCN':   srcVal(entry.vt, s => s.cert_issuer_cn),
+    'VT_Cert_SelfSigned': srcVal(entry.vt, s => s.cert_self_signed != null ? String(s.cert_self_signed) : null),
+    'VT_Cert_ValidUntil': srcVal(entry.vt, s => s.cert_valid_until),
+    'VT_Cert_SHA256':     srcVal(entry.vt, s => s.cert_thumbprint),
+    'AB_IPAddress':       srcVal(entry.ab, s => s.ipAddress),
+    'AB_IsPublic':        srcVal(entry.ab, s => s.isPublic != null ? String(s.isPublic) : null),
+    'AB_IPVersion':       srcVal(entry.ab, s => s.ipVersion != null ? 'IPv' + s.ipVersion : null),
+    'AB_IsWhitelisted':   srcVal(entry.ab, s => s.isWhitelisted != null ? String(s.isWhitelisted) : null),
+    'AB_AbuseScore':      srcVal(entry.ab, s => `${s.score||0}%`),
+    'AB_UsageType':       srcVal(entry.ab, s => s.usageType),
+    'AB_ISP':             srcVal(entry.ab, s => s.isp),
+    'AB_Domain':          srcVal(entry.ab, s => s.domain),
+    'AB_Hostnames':       srcVal(entry.ab, s => s.hostnames?.join('; ')),
+    'AB_IsTor':           srcVal(entry.ab, s => String(s.isTor)),
+    'OTX_PulseCount':     srcVal(entry.otx, s => String(s.pulseCount)),
+    'OTX_Subscribers':    srcVal(entry.otx, s => String(s.subscriberCount || 0)),
+    'OTX_IndicatorCount': srcVal(entry.otx, s => String(s.indicatorCount || 0)),
+    'OTX_Validation':     srcVal(entry.otx, s => s.validation),
+    'OTX_PulseSources':   srcVal(entry.otx, s => s.pulseSources?.join('; ')),
   };
 }
 
@@ -57,11 +91,11 @@ function exportCSV(order) {
   const rows = getExportRows(order);
   if (!rows.length) { showToast('No completed results to export', 'error'); return; }
   const flat = rows.map(rowToFlat);
-  const headers = Object.keys(flat[0]);
+  const headers = [...new Set(flat.flatMap(r => Object.keys(r)))];
   const escape = v => `"${String(v ?? '').replace(/"/g, '""')}"`;
   const lines = [
     headers.map(escape).join(','),
-    ...flat.map(r => headers.map(h => escape(r[h])).join(',')),
+    ...flat.map(r => headers.map(h => escape(r[h] ?? '')).join(',')),
   ];
   downloadFile('﻿' + lines.join('\r\n'), `x-verdikt-${order}-${expDateTag()}.csv`, 'text/csv;charset=utf-8;');
   showToast(`CSV exported - ${rows.length} row${rows.length !== 1 ? 's' : ''}`, 'success');
