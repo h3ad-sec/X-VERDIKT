@@ -269,7 +269,10 @@ function openModal(i) {
   const entry = scanResults[i];
   if (!entry) return;
   _currentModalEntry = entry;
+  const isIP = entry.ioc.type === 'ip' || entry.ioc.type === 'ipv6';
   document.getElementById('modal-title').innerHTML = buildModalTitle(entry);
+  document.getElementById('modal-header-actions').innerHTML = isIP
+    ? `<button class="iph-copy-btn" onclick="copyIPHighlights()">COPY</button>` : '';
   document.getElementById('modal-body').innerHTML  = buildModalContent(entry);
   document.getElementById('modal-overlay').classList.add('open');
 }
