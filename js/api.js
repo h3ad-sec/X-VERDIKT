@@ -252,7 +252,7 @@ function parseOTXResponse(data, iocType, iocValue) {
     if (p.adversary) adversaries.push(p.adversary);
   }
 
-  const otxSection = { ip: 'ip', ipv6: 'ip', domain: 'domain', url: 'url' };
+  const otxSection = { ip: 'ip', ipv6: 'ipv6', domain: 'domain', url: 'url' };
   const linkBase = otxSection[iocType] || 'file';
   const encVal = iocType === 'url' ? encodeURIComponent(iocValue) : iocValue;
 
@@ -330,7 +330,7 @@ function parseThreatFoxResponse(data, iocValue) {
     notFound: false,
     firstSeen: iocs[0]?.first_seen?.split(' ')[0] || null,
     lastSeen: iocs[0]?.last_seen?.split(' ')[0] || null,
-    link: iocValue ? `https://threatfox.abuse.ch/browse.php?search=${encodeURIComponent(iocValue)}` : null,
+    link: iocValue ? `https://threatfox.abuse.ch/browse.php?q=${encodeURIComponent(iocValue)}` : null,
     raw: data,
   };
 }

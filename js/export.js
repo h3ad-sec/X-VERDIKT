@@ -13,40 +13,30 @@ function getExportRows(order) {
 }
 
 function rowToFlat(entry) {
-  const srcVal = (src, skippedLabel, fn) => {
-    if (!src) return '';
-    if (src.skipped) return '—';
-    if (src.error)   return `Error: ${src.error}`;
+  const srcVal = (src, fn) => {
+    if (!src || src.skipped) return '-';
+    if (src.error) return `Error: ${src.error}`;
     return fn(src) || '';
   };
   return {
-    'IOC':          entry.ioc.value,
-    'Type':         entry.ioc.label,
-    'Verdict':      entry.verdict    || '',
-    'Score':        entry.score      ?? '',
-    'Confidence':   entry.confidence || '',
-    'Action':       entry.action     || '',
-    'VT Det':       srcVal(entry.vt,  '—', s => `${s.malicious||0}/${s.total||0}`),
-    'VT Pts':       entry.vtPts ?? '',
-    'AbuseIPDB':    srcVal(entry.ab,  '—', s => `${s.score||0}%`),
-    'AB Pts':       entry.abPts ?? '',
-    'OTX Pulses':   srcVal(entry.otx, '—', s => s.pulseCount ?? 0),
-    'OTX Pts':      entry.otxPts ?? '',
-    'ThreatFox':    srcVal(entry.threatfox, '—', s => s.notFound ? 'Not found' : `${s.iocCount} C2`),
-    'TF Pts':       entry.tfPts ?? '',
-    'URLScan':      srcVal(entry.urlscan, '—', s => s.notFound ? 'Not found' : `${s.maliciousCount||0}/${s.total||0} mal`),
-    'US Pts':       entry.usPts ?? '',
-    'URLhaus':      srcVal(entry.urlhaus, '—', s => s.notFound ? 'Not found' : `${s.urlsCount||0} URLs`),
-    'UH Pts':       entry.uhPts ?? '',
-    'MalwareBazaar':srcVal(entry.mb, '—', s => s.notFound ? 'Not found' : `${s.count||0} samples`),
-    'MB Pts':       entry.mbPts ?? '',
-    'HybridAnalysis':srcVal(entry.ha, '—', s => s.notFound ? 'No hits' : `${s.count||0} hits`),
-    'HA Pts':       entry.haPts ?? '',
-    'FileScan':     srcVal(entry.filescan, '—', s => s.notFound ? 'Not found' : `${s.count||0} reports (TL:${s.maxThreatLevel||0})`),
-    'FS Pts':       entry.fsPts ?? '',
-    'Shodan':       srcVal(entry.shodan, '—', s => s.cves?.length ? `${s.cves.length} CVEs` : `${s.ports?.length||0} ports`),
-    'Flags':        (entry.flags   || []).join(', '),
-    'Reasons':      (entry.reasons || []).join(' | '),
+    'IOC':           entry.ioc.value,
+    'Type':          entry.ioc.label,
+    'Verdict':       entry.verdict    || '',
+    'Score':         entry.score      ?? '',
+    'Confidence':    entry.confidence || '',
+    'Action':        entry.action     || '',
+    'VT':            srcVal(entry.vt,         s => `${s.malicious||0}/${s.total||0}`),
+    'AbuseIPDB':     srcVal(entry.ab,          s => `${s.score||0}%`),
+    'OTX':           srcVal(entry.otx,         s => `${s.pulseCount ?? 0} pulses`),
+    'ThreatFox':     srcVal(entry.threatfox,   s => s.notFound ? 'No C2'    : `${s.iocCount} C2`),
+    'URLScan':       srcVal(entry.urlscan,     s => s.notFound ? 'No scans' : `${s.maliciousCount||0}/${s.total||0} mal`),
+    'URLhaus':       srcVal(entry.urlhaus,     s => s.notFound ? 'Not found': `${s.urlsCount||0} URLs`),
+    'MalwareBazaar': srcVal(entry.mb,          s => s.notFound ? 'Clean'    : `${s.count||0} samples`),
+    'HybridAnalysis':srcVal(entry.ha,          s => s.notFound ? 'No hits'  : `${s.count||0} hits`),
+    'FileScan':      srcVal(entry.filescan,    s => s.notFound ? 'Not found': `${s.count||0} reports (TL:${s.maxThreatLevel||0})`),
+    'Shodan':        srcVal(entry.shodan,      s => s.cves?.length ? `${s.cves.length} CVEs` : `${s.ports?.length||0} ports`),
+    'Flags':         (entry.flags   || []).join(', '),
+    'Reasons':       (entry.reasons || []).join(' | '),
   };
 }
 
@@ -74,7 +64,7 @@ function exportCSV(order) {
     ...flat.map(r => headers.map(h => escape(r[h])).join(',')),
   ];
   downloadFile('﻿' + lines.join('\r\n'), `x-verdikt-${order}-${expDateTag()}.csv`, 'text/csv;charset=utf-8;');
-  showToast(`CSV exported — ${rows.length} row${rows.length !== 1 ? 's' : ''}`, 'success');
+  showToast(`CSV exported - ${rows.length} row${rows.length !== 1 ? 's' : ''}`, 'success');
 }
 
 /* ── JSON ─────────────────────────────────────────────────────────────────── */
@@ -92,7 +82,7 @@ function exportJSON(order) {
     out = rows.map(rowToFlat);
   }
   downloadFile(JSON.stringify(out, null, 2), `x-verdikt-${order}-${expDateTag()}.json`, 'application/json');
-  showToast(`JSON exported — ${rows.length} entr${rows.length !== 1 ? 'ies' : 'y'}`, 'success');
+  showToast(`JSON exported - ${rows.length} entr${rows.length !== 1 ? 'ies' : 'y'}`, 'success');
 }
 
 /* ── Markdown ─────────────────────────────────────────────────────────────── */
@@ -100,7 +90,7 @@ function exportMarkdown(order) {
   const rows = getExportRows(order);
   if (!rows.length) { showToast('No completed results to export', 'error'); return; }
   const cols = ['IOC', 'Type', 'Verdict', 'Score', 'Action', 'Reasons'];
-  const esc  = v => String(v ?? '—').replace(/\|/g, '\\|');
+  const esc  = v => String(v ?? '-').replace(/\|/g, '\\|');
   const mkTable = list => {
     const hdr = '| ' + cols.join(' | ') + ' |';
     const sep = '| ' + cols.map(() => '---').join(' | ') + ' |';
@@ -119,35 +109,28 @@ function exportMarkdown(order) {
     md += mkTable(rows);
   }
   downloadFile(md, `x-verdikt-${order}-${expDateTag()}.md`, 'text/markdown;charset=utf-8;');
-  showToast(`Markdown exported — ${rows.length} entr${rows.length !== 1 ? 'ies' : 'y'}`, 'success');
+  showToast(`Markdown exported - ${rows.length} entr${rows.length !== 1 ? 'ies' : 'y'}`, 'success');
 }
 
-/* ── Excel (HTML table → .xls) ───────────────────────────────────────────── */
+/* ── Excel (.xlsx via SheetJS) ───────────────────────────────────────────── */
 function exportExcel(order) {
   const rows = getExportRows(order);
   if (!rows.length) { showToast('No completed results to export', 'error'); return; }
-  const flat = rows.map(rowToFlat);
-  const headers = Object.keys(flat[0]);
-  const esc = v => String(v ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-  let html = `<html><head><meta charset="UTF-8"></head><body><table>`;
+  if (typeof XLSX === 'undefined') { showToast('Excel library not ready - refresh and try again', 'error'); return; }
+  const wb = XLSX.utils.book_new();
   if (order === 'verdict' || order === 'type') {
     const groups = {};
     for (const r of rows) {
       const k = order === 'verdict' ? (r.verdict || 'unknown') : r.ioc.type;
       (groups[k] = groups[k] || []).push(rowToFlat(r));
     }
-    for (const [k, rs] of Object.entries(groups)) {
-      html += `<tr><td colspan="${headers.length}" style="background:#1a2238;color:#00ff9f;font-weight:bold">${esc(k.toUpperCase())} (${rs.length})</td></tr>`;
-      html += `<tr>${headers.map(h => `<th style="background:#0b0f1a;font-weight:bold">${esc(h)}</th>`).join('')}</tr>`;
-      html += rs.map(r => `<tr>${headers.map(h => `<td>${esc(r[h])}</td>`).join('')}</tr>`).join('');
-    }
+    for (const [k, rs] of Object.entries(groups))
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(rs), k.slice(0, 31));
   } else {
-    html += `<tr>${headers.map(h => `<th style="background:#0b0f1a;font-weight:bold">${esc(h)}</th>`).join('')}</tr>`;
-    html += flat.map(r => `<tr>${headers.map(h => `<td>${esc(r[h])}</td>`).join('')}</tr>`).join('');
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(rows.map(rowToFlat)), 'Results');
   }
-  html += `</table></body></html>`;
-  downloadFile(new Blob([html], { type: 'application/vnd.ms-excel;charset=utf-8;' }), `x-verdikt-${order}-${expDateTag()}.xls`, 'application/vnd.ms-excel');
-  showToast(`Excel exported — ${rows.length} row${rows.length !== 1 ? 's' : ''}`, 'success');
+  XLSX.writeFile(wb, `x-verdikt-${order}-${expDateTag()}.xlsx`);
+  showToast(`Excel exported - ${rows.length} row${rows.length !== 1 ? 's' : ''}`, 'success');
 }
 
 /* ── Export modal ────────────────────────────────────────────────────────── */

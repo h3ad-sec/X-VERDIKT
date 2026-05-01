@@ -214,10 +214,10 @@
                   stroke-linejoin="round" />
               </svg>
               <div class="upload-text">DROP FILE OR CLICK TO BROWSE</div>
-              <div class="upload-formats">.txt · .csv</div>
+              <div class="upload-formats">.txt · .csv · .md · .json · .xlsx</div>
               <div class="upload-badge" id="upload-badge" style="display:none"></div>
             </div>
-            <input type="file" id="file-input" accept=".txt,.csv" style="display:none"
+            <input type="file" id="file-input" accept=".txt,.csv,.md,.json,.xlsx,.xls" style="display:none"
               onchange="handleFileUpload(event)">
           </div>
 
@@ -376,6 +376,7 @@
     </div>
   </div>
 
+  <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
   <script src="js/ioc-parser.js"></script>
   <script src="js/api.js"></script>
   <script src="js/scanner.js"></script>

@@ -258,8 +258,7 @@ body.light .btn-primary{color:#fff;}
 
 /* Source score cells */
 .src-score-cell{display:flex;flex-direction:column;gap:3px;min-width:90px;}
-.src-pts{font-family:var(--mono);font-size:var(--fs-md);font-weight:500;line-height:1;}
-.src-pts-max{font-size:var(--fs-xs);color:var(--muted);}
+.src-val{font-family:var(--mono);font-size:var(--fs-sm);font-weight:500;line-height:1.2;}
 .src-bar{height:3px;background:var(--border);border-radius:2px;overflow:hidden;margin:2px 0;}
 .src-bar-fill{height:100%;border-radius:2px;transition:width .4s ease;}
 .src-label{font-family:var(--mono);font-size:10px;color:var(--muted);}

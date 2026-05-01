@@ -74,7 +74,7 @@ function buildRow(entry, i) {
     <td id="otx-${i}">${buildSourceScoreCell('otx', otxPts, entry.otx, done, 10)}</td>
     <td id="ha-${i}">${isHash ? buildSourceScoreCell('ha', haPts, entry.ha, done, 20) : buildSourceScoreCell('ha', null, entry.ha, done, 20)}</td>
     <td id="tf-${i}">${ioc.type==='url' ? buildSourceScoreCell('uh', uhPts, entry.urlhaus, done, 20) : buildSourceScoreCell('tf', tfPts, entry.threatfox, done, ioc.type.startsWith('hash_')?10:20)}</td>
-    <td id="fs-${i}">${isHash ? buildSourceScoreCell('fs', fsPts, entry.filescan, done, 25) : '<span style="color:var(--muted);font-size:11px">—</span>'}</td>
+    <td id="fs-${i}">${isHash ? buildSourceScoreCell('fs', fsPts, entry.filescan, done, 25) : '<span style="color:var(--muted);font-size:11px">-</span>'}</td>
     <td id="fl-${i}">${buildFlagsCell(flags, done)}</td>
     <td>${done ? `<button class="btn-detail" onclick="openModal(${i})">DETAIL</button>` : '<span class="src-loading">…</span>'}</td>
   </tr>`;
@@ -93,8 +93,8 @@ function buildVerdictCell(verdict, score, confidence, done) {
   return `<div class="verdict-cell">
     <span class="verdict-badge ${v.cls}">${v.icon} ${v.label}</span>
     <div class="vc-meta">
-      <span class="vc-score">${score != null ? score : '—'}<span class="vc-score-unit">/100</span></span>
-      <span class="vc-conf" style="color:${confColor}">${(confidence||'—').toUpperCase()}</span>
+      <span class="vc-score">${score != null ? score : '-'}<span class="vc-score-unit">/100</span></span>
+      <span class="vc-conf" style="color:${confColor}">${(confidence||'-').toUpperCase()}</span>
     </div>
   </div>`;
 }
@@ -103,23 +103,22 @@ function buildSourceScoreCell(src, pts, data, done, maxPts) {
   if (!done) return '<span class="src-loading">…</span>';
   const colors = { vt:'var(--vt)', ab:'var(--ab)', otx:'var(--otx)', mb:'var(--mb)', tf:'var(--tf)', us:'var(--us)', uh:'var(--uh)', ha:'var(--ha)', fs:'var(--fs)' };
   const col = colors[src] || 'var(--muted)';
-  if (!data || data.skipped) return `<div class="src-score-cell"><span style="color:var(--muted);font-size:11px">—</span></div>`;
+  if (!data || data.skipped) return `<div class="src-score-cell"><span style="color:var(--muted);font-size:11px">-</span></div>`;
   if (data.error) return `<div class="src-score-cell"><span style="color:var(--muted);font-size:11px">${escapeHtml(truncate(data.error,18))}</span></div>`;
   const pct = (pts != null && maxPts > 0) ? Math.min(100, Math.round((pts / maxPts) * 100)) : 0;
   let label = '';
   if (src === 'vt')  label = data.total > 0 ? `${data.malicious}/${data.total}` : 'N/A';
   if (src === 'ab')  label = `${data.score || 0}%`;
   if (src === 'otx') label = `${data.pulseCount || 0} pulse${(data.pulseCount||0) !== 1 ? 's' : ''}`;
-  if (src === 'mb')  label = data.notFound ? 'Not found' : `${data.count || 0} sample${(data.count||0) !== 1 ? 's' : ''}`;
+  if (src === 'mb')  label = data.notFound ? 'Clean' : `${data.count || 0} sample${(data.count||0) !== 1 ? 's' : ''}`;
   if (src === 'tf')  label = data.notFound ? 'No C2' : `${data.iocCount || 0} C2${data.maxConfidence ? ` ${data.maxConfidence}%` : ''}`;
-  if (src === 'us')  label = data.notFound ? 'Not found' : `${data.maliciousCount || 0}/${data.total || 0} mal`;
+  if (src === 'us')  label = data.notFound ? 'No scans' : `${data.maliciousCount || 0}/${data.total || 0} mal`;
   if (src === 'uh')  label = data.notFound ? 'Not found' : `${data.urlsCount || 0} URL${(data.urlsCount||0) !== 1 ? 's' : ''}`;
   if (src === 'ha')  label = data.notFound ? 'No hits' : (data.families?.[0] ? truncate(data.families[0], 12) : `${data.count || 0} hit${(data.count||0) !== 1 ? 's' : ''}`);
-  if (src === 'fs')  label = data.notFound ? 'Not found' : (data.maliciousCount > 0 ? `${data.maliciousCount} mal (TL:${data.maxThreatLevel})` : `${data.count || 0} scan${(data.count||0) !== 1 ? 's' : ''}`);
+  if (src === 'fs')  label = data.notFound ? 'Not found' : (data.maliciousCount > 0 ? `${data.maliciousCount} mal TL:${data.maxThreatLevel}` : `${data.count || 0} scan${(data.count||0) !== 1 ? 's' : ''}`);
   return `<div class="src-score-cell">
-    <div class="src-pts" style="color:${col}">${pts != null ? pts : '—'}<span class="src-pts-max">/${maxPts}</span></div>
+    <div class="src-val" style="color:${col}">${escapeHtml(label)}</div>
     <div class="src-bar"><div class="src-bar-fill" style="width:${pct}%;background:${col}"></div></div>
-    <div class="src-label">${escapeHtml(label)}</div>
   </div>`;
 }
 
@@ -150,7 +149,7 @@ function buildTFScoreCell(tf, done) {
 
 function buildFlagsCell(flags, done) {
   if (!done) return '<span class="src-loading">…</span>';
-  if (!flags?.length) return '<span style="color:var(--muted);font-size:11px">—</span>';
+  if (!flags?.length) return '<span style="color:var(--muted);font-size:11px">-</span>';
   const flagColors = {
     'TF:C2': 'var(--tf)', 'UH:URLS': 'var(--uh)', 'HA:SANDBOX': 'var(--ha)',
     'MB:HIT': 'var(--mb)', 'SH:CVE': 'var(--sh)', 'SH:TAG': 'var(--sh)',
@@ -182,7 +181,7 @@ function updateRow(i, entry) {
   if (otxEl) otxEl.innerHTML= buildSourceScoreCell('otx', otxPts, otx, true, 10);
   if (haEl)  haEl.innerHTML = isHash ? buildSourceScoreCell('ha', haPts, ha, true, 20) : buildSourceScoreCell('ha', null, ha, true, 20);
   if (tfEl)  tfEl.innerHTML = t === 'url' ? buildSourceScoreCell('uh', uhPts, urlhaus, true, 20) : buildSourceScoreCell('tf', tfPts, threatfox, true, isHash?10:20);
-  if (fsEl)  fsEl.innerHTML = isHash ? buildSourceScoreCell('fs', fsPts, filescan, true, 25) : '<span style="color:var(--muted);font-size:11px">—</span>';
+  if (fsEl)  fsEl.innerHTML = isHash ? buildSourceScoreCell('fs', fsPts, filescan, true, 25) : '<span style="color:var(--muted);font-size:11px">-</span>';
   if (flEl)  flEl.innerHTML = buildFlagsCell(flags, true);
   if (row) {
     row.dataset.verdict = verdict || 'unknown';
@@ -313,12 +312,12 @@ function buildModalContent(entry) {
       <span class="action-badge" style="color:${acol};border-color:${acol}40;background:${acol}10">${alabel}</span>
     </div>
     <div class="msc-center">
-      <div class="mvc-score-num" style="color:${barColor}">${score != null ? score : '—'}</div>
+      <div class="mvc-score-num" style="color:${barColor}">${score != null ? score : '-'}</div>
       <div class="mvc-score-bar"><div class="mvc-score-fill" style="width:${barPct}%;background:${barColor}"></div></div>
       <div class="mvc-score-label">RISK SCORE / 100</div>
     </div>
     <div class="msc-right">
-      <div class="mvc-conf-val" style="color:${ccol}">${(confidence||'—').toUpperCase()}</div>
+      <div class="mvc-conf-val" style="color:${ccol}">${(confidence||'-').toUpperCase()}</div>
       <div class="mvc-conf-label">CONFIDENCE</div>
       <div style="margin-top:10px;display:flex;flex-direction:column;gap:3px">
         ${reasons.map(r => `<div style="font-size:11px;color:var(--muted);font-family:var(--mono)">${escapeHtml(r)}</div>`).join('')}
@@ -326,28 +325,28 @@ function buildModalContent(entry) {
     </div>
   </div>`);
 
-  /* Score breakdown — type-specific rows */
-  const vtSig = vt ? (vt.error ? 'Error' : vt.skipped ? '—' : `${vt.malicious||0}/${vt.total||0} engines`) : '—';
+  /* Score breakdown - type-specific rows */
+  const vtSig = vt ? (vt.error ? 'Error' : vt.skipped ? '-' : `${vt.malicious||0}/${vt.total||0} engines`) : '-';
   let sbdRows = buildSBDRow('VIRUSTOTAL', vtPts, vtMax, 'var(--vt)', vtSig);
 
   if (iocIsIP) {
-    sbdRows += buildSBDRow('ABUSEIPDB',  abPts,  40, 'var(--ab)', ab  ? (ab.error  ? 'Error' : ab.skipped  ? '—' : `${ab.score||0}% conf`)          : '—');
-    sbdRows += buildSBDRow('OTX',        otxPts, 10, 'var(--otx)', otx ? (otx.error ? 'Error' : otx.skipped ? '—' : `${otx.pulseCount||0} pulses`)   : '—');
-    sbdRows += buildSBDRow('THREATFOX',  tfPts,  20, 'var(--tf)', threatfox ? (threatfox.error ? 'Error' : threatfox.skipped ? '—' : threatfox.notFound ? 'No C2' : `${threatfox.iocCount} C2 IOCs`) : '—');
+    sbdRows += buildSBDRow('ABUSEIPDB',  abPts,  40, 'var(--ab)', ab  ? (ab.error  ? 'Error' : ab.skipped  ? '-' : `${ab.score||0}% conf`)          : '-');
+    sbdRows += buildSBDRow('OTX',        otxPts, 10, 'var(--otx)', otx ? (otx.error ? 'Error' : otx.skipped ? '-' : `${otx.pulseCount||0} pulses`)   : '-');
+    sbdRows += buildSBDRow('THREATFOX',  tfPts,  20, 'var(--tf)', threatfox ? (threatfox.error ? 'Error' : threatfox.skipped ? '-' : threatfox.notFound ? 'No C2' : `${threatfox.iocCount} C2 IOCs`) : '-');
   } else if (iocIsHash) {
-    sbdRows += buildSBDRow('MALWAREBAZAAR', mbPts, 10, 'var(--mb)', mb ? (mb.error ? 'Error' : mb.skipped ? '—' : mb.notFound ? 'Not found' : `${mb.count} samples`) : '—');
-    sbdRows += buildSBDRow('OTX',           otxPts, 10, 'var(--otx)', otx ? (otx.error ? 'Error' : otx.skipped ? '—' : `${otx.pulseCount||0} pulses`) : '—');
-    sbdRows += buildSBDRow('THREATFOX',     tfPts,  10, 'var(--tf)', threatfox ? (threatfox.error ? 'Error' : threatfox.skipped ? '—' : threatfox.notFound ? 'No C2' : `${threatfox.iocCount} C2 IOCs`) : '—');
-    sbdRows += buildSBDRow('HYBRIDANALYSIS',haPts,  20, 'var(--ha)', ha ? (ha.error ? 'Error' : ha.skipped ? '—' : ha.notFound ? 'No hits' : `${ha.count} hit${ha.count!==1?'s':''}`) : '—');
-    sbdRows += buildSBDRow('FILESCAN',      fsPts,  25, 'var(--fs)', filescan ? (filescan.error ? 'Error' : filescan.skipped ? '—' : filescan.notFound ? 'Not found' : `${filescan.count} report${filescan.count!==1?'s':''} (TL:${filescan.maxThreatLevel||0})`) : '—');
+    sbdRows += buildSBDRow('MALWAREBAZAAR', mbPts, 10, 'var(--mb)', mb ? (mb.error ? 'Error' : mb.skipped ? '-' : mb.notFound ? 'Not found' : `${mb.count} samples`) : '-');
+    sbdRows += buildSBDRow('OTX',           otxPts, 10, 'var(--otx)', otx ? (otx.error ? 'Error' : otx.skipped ? '-' : `${otx.pulseCount||0} pulses`) : '-');
+    sbdRows += buildSBDRow('THREATFOX',     tfPts,  10, 'var(--tf)', threatfox ? (threatfox.error ? 'Error' : threatfox.skipped ? '-' : threatfox.notFound ? 'No C2' : `${threatfox.iocCount} C2 IOCs`) : '-');
+    sbdRows += buildSBDRow('HYBRIDANALYSIS',haPts,  20, 'var(--ha)', ha ? (ha.error ? 'Error' : ha.skipped ? '-' : ha.notFound ? 'No hits' : `${ha.count} hit${ha.count!==1?'s':''}`) : '-');
+    sbdRows += buildSBDRow('FILESCAN',      fsPts,  25, 'var(--fs)', filescan ? (filescan.error ? 'Error' : filescan.skipped ? '-' : filescan.notFound ? 'Not found' : `${filescan.count} report${filescan.count!==1?'s':''} (TL:${filescan.maxThreatLevel||0})`) : '-');
   } else if (iocIsDom) {
-    sbdRows += buildSBDRow('URLSCAN',    usPts,  20, 'var(--us)', urlscan ? (urlscan.error ? 'Error' : urlscan.skipped ? '—' : urlscan.notFound ? 'Not found' : `${urlscan.maliciousCount||0}/${urlscan.total||0} mal`) : '—');
-    sbdRows += buildSBDRow('OTX',        otxPts, 10, 'var(--otx)', otx ? (otx.error ? 'Error' : otx.skipped ? '—' : `${otx.pulseCount||0} pulses`) : '—');
-    sbdRows += buildSBDRow('THREATFOX',  tfPts,  20, 'var(--tf)', threatfox ? (threatfox.error ? 'Error' : threatfox.skipped ? '—' : threatfox.notFound ? 'No C2' : `${threatfox.iocCount} C2 IOCs`) : '—');
+    sbdRows += buildSBDRow('URLSCAN',    usPts,  20, 'var(--us)', urlscan ? (urlscan.error ? 'Error' : urlscan.skipped ? '-' : urlscan.notFound ? 'Not found' : `${urlscan.maliciousCount||0}/${urlscan.total||0} mal`) : '-');
+    sbdRows += buildSBDRow('OTX',        otxPts, 10, 'var(--otx)', otx ? (otx.error ? 'Error' : otx.skipped ? '-' : `${otx.pulseCount||0} pulses`) : '-');
+    sbdRows += buildSBDRow('THREATFOX',  tfPts,  20, 'var(--tf)', threatfox ? (threatfox.error ? 'Error' : threatfox.skipped ? '-' : threatfox.notFound ? 'No C2' : `${threatfox.iocCount} C2 IOCs`) : '-');
   } else {
-    sbdRows += buildSBDRow('URLSCAN',    usPts,  20, 'var(--us)', urlscan ? (urlscan.error ? 'Error' : urlscan.skipped ? '—' : urlscan.notFound ? 'Not found' : `${urlscan.maliciousCount||0}/${urlscan.total||0} mal`) : '—');
-    sbdRows += buildSBDRow('OTX',        otxPts, 10, 'var(--otx)', otx ? (otx.error ? 'Error' : otx.skipped ? '—' : `${otx.pulseCount||0} pulses`) : '—');
-    sbdRows += buildSBDRow('URLHAUS',    uhPts,  20, 'var(--uh)', urlhaus ? (urlhaus.error ? 'Error' : urlhaus.skipped ? '—' : urlhaus.notFound ? 'Not found' : `${urlhaus.urlsCount||0} URLs`) : '—');
+    sbdRows += buildSBDRow('URLSCAN',    usPts,  20, 'var(--us)', urlscan ? (urlscan.error ? 'Error' : urlscan.skipped ? '-' : urlscan.notFound ? 'Not found' : `${urlscan.maliciousCount||0}/${urlscan.total||0} mal`) : '-');
+    sbdRows += buildSBDRow('OTX',        otxPts, 10, 'var(--otx)', otx ? (otx.error ? 'Error' : otx.skipped ? '-' : `${otx.pulseCount||0} pulses`) : '-');
+    sbdRows += buildSBDRow('URLHAUS',    uhPts,  20, 'var(--uh)', urlhaus ? (urlhaus.error ? 'Error' : urlhaus.skipped ? '-' : urlhaus.notFound ? 'Not found' : `${urlhaus.urlsCount||0} URLs`) : '-');
   }
 
   const maxNote = iocIsIP   ? 'VT(30) + AbuseIPDB(40) + OTX(10) + ThreatFox(20)'
@@ -363,7 +362,7 @@ function buildModalContent(entry) {
     </table>
   </div>`);
 
-  /* Primary intel — all sources relevant to this IOC type (Shodan only stays supplementary) */
+  /* Primary intel - all sources relevant to this IOC type (Shodan only stays supplementary) */
   if (iocIsIP) {
     parts.push(`<div class="modal-intel-grid">
       ${buildVTBlock(vt, iocType)}
@@ -396,7 +395,7 @@ function buildModalContent(entry) {
     </div>`);
   }
 
-  /* Supplementary — Shodan only (IP) */
+  /* Supplementary - Shodan only (IP) */
   if (iocIsIP) {
     parts.push(`<div class="modal-supp-label">SUPPLEMENTARY INTELLIGENCE</div>`);
     parts.push(`<div class="modal-supp-grid">${buildSuppCard('SHODAN', 'var(--sh)', buildShodanContent(shodan), shodan?.link)}</div>`);
@@ -410,7 +409,7 @@ function buildSBDRow(name, pts, max, col, note) {
   const cls = pts == null ? 'sbd-na' : '';
   return `<tr class="sbd-row ${cls}">
     <td class="sbd-src" style="color:${col}">${name}</td>
-    <td class="sbd-pts">${pts != null ? pts : '—'}</td>
+    <td class="sbd-pts">${pts != null ? pts : '-'}</td>
     <td class="sbd-cap" style="color:var(--muted)">${max}</td>
     <td class="sbd-bar-cell"><div class="sbd-bar"><div class="sbd-bar-fill" style="width:${pct}%;background:${col}"></div></div></td>
     <td class="sbd-note">${escapeHtml(note)}</td>
@@ -719,7 +718,7 @@ function updateResultsMeta(results) {
   if (el) el.innerHTML = `<span>${done}</span> / ${results.length} analyzed`;
 }
 
-/* ── Key save/load (no-ops — panel removed, kept for null safety) ─────────── */
+/* ── Key save/load (no-ops - panel removed, kept for null safety) ─────────── */
 function saveKeys() {}
 function clearKeys() {}
 function loadSavedKeys() {}

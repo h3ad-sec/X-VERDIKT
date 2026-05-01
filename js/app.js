@@ -63,10 +63,8 @@ async function detectServerStatus() {
       if (status.mode === 'server') {
         window._serverVTPaid = status.vt_paid === true;
         setServerStatusDots(status);
-        const rn = document.getElementById('rate-note-text');
-        if (rn) rn.textContent = status.vt_paid ? 'VT Paid — fully parallel' : 'VT Free — token bucket';
-        const active = ['vt','abuseipdb','otx'].filter(k => status[k]).length;
-        showToast(`Server online — ${active}/3 primary sources configured`, active >= 2 ? 'success' : 'warning');
+          const active = Object.values(status).filter(v => v === true).length;
+        showToast(`Server online - ${active} source${active !== 1 ? 's' : ''} configured`, active >= 3 ? 'success' : 'warning');
         return;
       }
     }
@@ -82,13 +80,45 @@ function handleFileUpload(e) { const f = e.target.files[0]; if (f) processFile(f
 function processFile(file) {
   const badge = document.getElementById('upload-badge');
   if (badge) { badge.textContent = file.name; badge.style.display = ''; }
-  const r = new FileReader();
-  r.onload = e => {
-    const firstTab = document.querySelector('.input-tab');
-    if (firstTab) switchInputTab('text', firstTab);
-    document.getElementById('ip-input').value = e.target.result;
-    parseIPsRealtime();
-    showToast('File loaded', 'success');
-  };
-  r.readAsText(file);
+  const ext = file.name.split('.').pop().toLowerCase();
+
+  if (ext === 'xlsx' || ext === 'xls') {
+    if (typeof XLSX === 'undefined') { showToast('Excel library not ready — try again', 'error'); return; }
+    const r = new FileReader();
+    r.onload = e => {
+      try {
+        const wb = XLSX.read(new Uint8Array(e.target.result), { type: 'array' });
+        const csv = XLSX.utils.sheet_to_csv(wb.Sheets[wb.SheetNames[0]]);
+        loadTextIntoInput(csv, file.name);
+      } catch(_) { showToast('Failed to parse Excel file', 'error'); }
+    };
+    r.readAsArrayBuffer(file);
+  } else if (ext === 'json') {
+    const r = new FileReader();
+    r.onload = e => {
+      try {
+        const obj = JSON.parse(e.target.result);
+        const vals = [];
+        (function extract(o) {
+          if (typeof o === 'string') vals.push(o);
+          else if (Array.isArray(o)) o.forEach(extract);
+          else if (o && typeof o === 'object') Object.values(o).forEach(extract);
+        })(obj);
+        loadTextIntoInput(vals.join('\n'), file.name);
+      } catch(_) { loadTextIntoInput(e.target.result, file.name); }
+    };
+    r.readAsText(file);
+  } else {
+    const r = new FileReader();
+    r.onload = e => loadTextIntoInput(e.target.result, file.name);
+    r.readAsText(file);
+  }
+}
+
+function loadTextIntoInput(text, filename) {
+  const firstTab = document.querySelector('.input-tab');
+  if (firstTab) switchInputTab('text', firstTab);
+  document.getElementById('ip-input').value = text;
+  parseIOCsRealtime();
+  showToast(`File loaded${filename ? ': ' + filename : ''}`, 'success');
 }
