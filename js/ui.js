@@ -331,7 +331,7 @@ function buildIPHighlightsCard(entry) {
   return `<div class="ip-highlight-card">
     <div class="iph-header">
       <span class="iph-title">IP INTELLIGENCE HIGHLIGHTS</span>
-      <button class="iph-copy-btn" onclick="copyIPHighlights()">&#x29C9; COPY</button>
+      <button class="iph-copy-btn" onclick="copyIPHighlights()">COPY</button>
     </div>
     <div class="iph-grid">
       <div class="iph-col">
