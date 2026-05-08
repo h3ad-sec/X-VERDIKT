@@ -239,16 +239,22 @@ body.light .btn-primary{color:#fff;}
 .type-url   {color:#06b6d4;border-color:rgba(6,182,212,.25);background:rgba(6,182,212,.04);}
 .type-hash  {color:#f59e0b;border-color:rgba(245,158,11,.25);background:rgba(245,158,11,.04);}
 /* ── IP Intel table ─────────────────────────────────────────────────────── */
-.col-geo     {min-width:80px;}
-.col-network {min-width:100px;}
-.col-isp     {min-width:110px;}
-.col-iflags  {min-width:120px;}
-.col-iab     {min-width:50px;text-align:center;}
-.col-ivt     {min-width:55px;text-align:center;}
-.col-iotx    {min-width:40px;text-align:center;}
-.col-itf     {min-width:40px;text-align:center;}
-.col-idetail {min-width:60px;}
+.col-icountry {min-width:70px;}
+.col-icity    {min-width:70px;}
+.col-inet     {min-width:90px;}
+.col-iasn     {min-width:80px;}
+.col-iasnname {min-width:110px;}
+.col-iisp     {min-width:100px;}
+.col-iorg     {min-width:100px;}
+.col-idomain  {min-width:90px;}
+.col-iflags   {min-width:130px;}
+.col-iab      {min-width:70px;text-align:center;}
+.col-ivt      {min-width:75px;text-align:center;}
+.col-iotx     {min-width:40px;text-align:center;}
+.col-itf      {min-width:70px;text-align:center;}
+.col-idetail  {min-width:60px;}
 .ipi-flag{display:inline-block;font-family:var(--mono);font-size:9px;font-weight:700;letter-spacing:.06em;padding:2px 5px;border:1px solid;border-radius:2px;margin:1px 2px 1px 0;}
+.ipi-nf{font-size:10px;color:var(--muted);font-style:italic;}
 /* ── IP Intel modal ─────────────────────────────────────────────────────── */
 .iim-wrap{padding:20px 24px;}
 .iim-title{font-family:var(--mono);font-size:14px;font-weight:700;letter-spacing:.05em;margin-bottom:18px;}

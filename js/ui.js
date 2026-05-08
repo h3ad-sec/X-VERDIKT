@@ -923,48 +923,43 @@ function renderIPIntelRows(results) {
 function buildIPIntelRow(entry, i) {
   const { ioc, iplocate, ab, vt, otx, threatfox, done } = entry;
   const il = (iplocate && !iplocate.skipped && !iplocate.error && !iplocate.notFound) ? iplocate : null;
+  const nf = '<span class="ipi-nf">not found</span>';
+  const ld = '<span class="src-loading">…</span>';
 
-  const country = il?.country_code || il?.country || (done ? '-' : '…');
-  const city = il?.city ? ` / ${escapeHtml(il.city)}` : '';
-  const geoHtml = il ? `${escapeHtml(country)}${city}` : (done ? '<span style="color:var(--muted)">-</span>' : '<span class="src-loading">…</span>');
-
-  const asn = il?.asn || '';
-  const asnName = il?.asn_name || '';
-  const netHtml = il && asn
-    ? `<div style="font-size:11px;color:var(--accent2)">${escapeHtml(asn)}</div><div style="font-size:10px;color:var(--muted)">${escapeHtml(truncate(asnName, 22))}</div>`
-    : (done ? '<span style="color:var(--muted)">-</span>' : '<span class="src-loading">…</span>');
-
-  const ispOrg = il?.isp || il?.organization || '';
-  const ispHtml = ispOrg
-    ? `<div style="font-size:11px">${escapeHtml(truncate(ispOrg, 24))}</div>`
-    : (done ? '<span style="color:var(--muted)">-</span>' : '<span class="src-loading">…</span>');
-
-  const flagsHtml = done ? buildIPIntelFlags(il) : '<span class="src-loading">…</span>';
+  const countryHtml  = done ? (il?.country     ? escapeHtml(il.country)  : nf) : ld;
+  const cityHtml     = done ? (il?.city        ? escapeHtml(il.city)     : nf) : ld;
+  const netHtml      = done ? (il?.network     ? `<span style="font-size:11px">${escapeHtml(il.network)}</span>` : nf) : ld;
+  const asnHtml      = done ? (il?.asn         ? `<span style="font-size:11px;color:var(--accent2)">${escapeHtml(il.asn)}</span>` : nf) : ld;
+  const asnNameHtml  = done ? (il?.asn_name    ? `<span style="font-size:10px;color:var(--muted)">${escapeHtml(truncate(il.asn_name, 26))}</span>` : nf) : ld;
+  const ispHtml      = done ? (il?.isp         ? `<span style="font-size:11px">${escapeHtml(truncate(il.isp, 24))}</span>` : nf) : ld;
+  const orgHtml      = done ? (il?.organization ? `<span style="font-size:11px">${escapeHtml(truncate(il.organization, 24))}</span>` : nf) : ld;
+  const domainHtml   = done ? (il?.domain      ? `<span style="font-size:11px">${escapeHtml(il.domain)}</span>` : nf) : ld;
+  const flagsHtml    = done ? buildIPIntelFlags(il) : ld;
 
   const abScore = ab && !ab.skipped && !ab.error ? ab.score : null;
   const abHtml = done
-    ? (abScore != null ? `<span style="font-size:12px;font-weight:600;color:${abScore >= 75 ? 'var(--red)' : abScore >= 25 ? 'var(--yellow)' : 'var(--accent)'}">${abScore}%</span>` : '<span style="color:var(--muted)">-</span>')
-    : '<span class="src-loading">…</span>';
+    ? (abScore != null ? `<span style="font-size:12px;font-weight:600;color:${abScore >= 75 ? 'var(--red)' : abScore >= 25 ? 'var(--yellow)' : 'var(--accent)'}">${abScore}%</span>` : nf)
+    : ld;
 
   const vtMal   = vt && !vt.skipped && !vt.error && vt.total > 0 ? vt.malicious : null;
   const vtTotal = vt && !vt.skipped && !vt.error && vt.total > 0 ? vt.total : null;
   const vtHtml = done
-    ? (vtTotal != null ? `<span style="font-size:12px;color:${vtMal > 0 ? 'var(--red)' : 'var(--accent)'}">${vtMal}/${vtTotal}</span>` : '<span style="color:var(--muted)">-</span>')
-    : '<span class="src-loading">…</span>';
+    ? (vtTotal != null ? `<span style="font-size:12px;color:${vtMal > 0 ? 'var(--red)' : 'var(--accent)'}">${vtMal}/${vtTotal}</span>` : nf)
+    : ld;
 
   const otxPulses = otx && !otx.skipped && !otx.error ? otx.pulseCount : null;
   const otxHtml = done
-    ? (otxPulses != null ? `<span style="font-size:12px;color:${otxPulses > 0 ? 'var(--yellow)' : 'var(--muted)'}">${otxPulses}</span>` : '<span style="color:var(--muted)">-</span>')
-    : '<span class="src-loading">…</span>';
+    ? (otxPulses != null ? `<span style="font-size:12px;color:${otxPulses > 0 ? 'var(--yellow)' : 'var(--muted)'}">${otxPulses}</span>` : nf)
+    : ld;
 
   const tfHits = threatfox && !threatfox.skipped && !threatfox.error && !threatfox.notFound ? (threatfox.iocCount || 0) : null;
   const tfHtml = done
-    ? (tfHits != null ? `<span style="font-size:12px;color:${tfHits > 0 ? 'var(--red)' : 'var(--muted)'}">${tfHits}</span>` : '<span style="color:var(--muted)">-</span>')
-    : '<span class="src-loading">…</span>';
+    ? (tfHits != null ? `<span style="font-size:12px;color:${tfHits > 0 ? 'var(--red)' : 'var(--muted)'}">${tfHits}</span>` : nf)
+    : ld;
 
   const detailHtml = done
     ? `<button class="btn-detail" onclick="openIPIntelModal(${i})">DETAIL</button>`
-    : '<span class="src-loading">…</span>';
+    : ld;
 
   return `<tr data-row="${i}">
     <td class="td-ioc">
@@ -973,9 +968,14 @@ function buildIPIntelRow(entry, i) {
         <button class="ioc-copy-btn" onclick="copyToClipboard('${escapeAttr(ioc.value)}')" title="Copy">⎘</button>
       </div>
     </td>
-    <td id="ii-geo-${i}">${geoHtml}</td>
+    <td id="ii-country-${i}">${countryHtml}</td>
+    <td id="ii-city-${i}">${cityHtml}</td>
     <td id="ii-net-${i}">${netHtml}</td>
+    <td id="ii-asn-${i}">${asnHtml}</td>
+    <td id="ii-asnname-${i}">${asnNameHtml}</td>
     <td id="ii-isp-${i}">${ispHtml}</td>
+    <td id="ii-org-${i}">${orgHtml}</td>
+    <td id="ii-domain-${i}">${domainHtml}</td>
     <td id="ii-fl-${i}">${flagsHtml}</td>
     <td id="ii-ab-${i}">${abHtml}</td>
     <td id="ii-vt-${i}">${vtHtml}</td>
@@ -1008,52 +1008,54 @@ function buildIPIntelFlags(il) {
 function updateIPIntelRow(i, entry) {
   const { iplocate, ab, vt, otx, threatfox } = entry;
   const il = (iplocate && !iplocate.skipped && !iplocate.error && !iplocate.notFound) ? iplocate : null;
+  const nf = '<span class="ipi-nf">not found</span>';
+  const g = id => document.getElementById(`${id}-${i}`);
 
-  const geoEl  = document.getElementById(`ii-geo-${i}`);
-  const netEl  = document.getElementById(`ii-net-${i}`);
-  const ispEl  = document.getElementById(`ii-isp-${i}`);
-  const flEl   = document.getElementById(`ii-fl-${i}`);
-  const abEl   = document.getElementById(`ii-ab-${i}`);
-  const vtEl   = document.getElementById(`ii-vt-${i}`);
-  const otxEl  = document.getElementById(`ii-otx-${i}`);
-  const tfEl   = document.getElementById(`ii-tf-${i}`);
-  const detEl  = document.getElementById(`ii-det-${i}`);
+  const countryEl  = g('ii-country');
+  const cityEl     = g('ii-city');
+  const netEl      = g('ii-net');
+  const asnEl      = g('ii-asn');
+  const asnNameEl  = g('ii-asnname');
+  const ispEl      = g('ii-isp');
+  const orgEl      = g('ii-org');
+  const domainEl   = g('ii-domain');
+  const flEl       = g('ii-fl');
+  const abEl       = g('ii-ab');
+  const vtEl       = g('ii-vt');
+  const otxEl      = g('ii-otx');
+  const tfEl       = g('ii-tf');
+  const detEl      = g('ii-det');
 
-  const country = il?.country_code || il?.country || '';
-  const city = il?.city ? ` / ${escapeHtml(il.city)}` : '';
-  if (geoEl) geoEl.innerHTML = il ? `${escapeHtml(country)}${city}` : '<span style="color:var(--muted)">-</span>';
-
-  const asn = il?.asn || '';
-  const asnName = il?.asn_name || '';
-  if (netEl) netEl.innerHTML = asn
-    ? `<div style="font-size:11px;color:var(--accent2)">${escapeHtml(asn)}</div><div style="font-size:10px;color:var(--muted)">${escapeHtml(truncate(asnName, 22))}</div>`
-    : '<span style="color:var(--muted)">-</span>';
-
-  const ispOrg = il?.isp || il?.organization || '';
-  if (ispEl) ispEl.innerHTML = ispOrg ? `<div style="font-size:11px">${escapeHtml(truncate(ispOrg, 24))}</div>` : '<span style="color:var(--muted)">-</span>';
-
-  if (flEl) flEl.innerHTML = buildIPIntelFlags(il);
+  if (countryEl)  countryEl.innerHTML  = il?.country      ? escapeHtml(il.country)  : nf;
+  if (cityEl)     cityEl.innerHTML     = il?.city         ? escapeHtml(il.city)     : nf;
+  if (netEl)      netEl.innerHTML      = il?.network      ? `<span style="font-size:11px">${escapeHtml(il.network)}</span>` : nf;
+  if (asnEl)      asnEl.innerHTML      = il?.asn          ? `<span style="font-size:11px;color:var(--accent2)">${escapeHtml(il.asn)}</span>` : nf;
+  if (asnNameEl)  asnNameEl.innerHTML  = il?.asn_name     ? `<span style="font-size:10px;color:var(--muted)">${escapeHtml(truncate(il.asn_name, 26))}</span>` : nf;
+  if (ispEl)      ispEl.innerHTML      = il?.isp          ? `<span style="font-size:11px">${escapeHtml(truncate(il.isp, 24))}</span>` : nf;
+  if (orgEl)      orgEl.innerHTML      = il?.organization  ? `<span style="font-size:11px">${escapeHtml(truncate(il.organization, 24))}</span>` : nf;
+  if (domainEl)   domainEl.innerHTML   = il?.domain       ? `<span style="font-size:11px">${escapeHtml(il.domain)}</span>` : nf;
+  if (flEl)       flEl.innerHTML       = buildIPIntelFlags(il);
 
   const abScore = ab && !ab.skipped && !ab.error ? ab.score : null;
   if (abEl) abEl.innerHTML = abScore != null
     ? `<span style="font-size:12px;font-weight:600;color:${abScore >= 75 ? 'var(--red)' : abScore >= 25 ? 'var(--yellow)' : 'var(--accent)'}">${abScore}%</span>`
-    : '<span style="color:var(--muted)">-</span>';
+    : nf;
 
   const vtMal   = vt && !vt.skipped && !vt.error && vt.total > 0 ? vt.malicious : null;
   const vtTotal = vt && !vt.skipped && !vt.error && vt.total > 0 ? vt.total : null;
   if (vtEl) vtEl.innerHTML = vtTotal != null
     ? `<span style="font-size:12px;color:${vtMal > 0 ? 'var(--red)' : 'var(--accent)'}">${vtMal}/${vtTotal}</span>`
-    : '<span style="color:var(--muted)">-</span>';
+    : nf;
 
   const otxPulses = otx && !otx.skipped && !otx.error ? otx.pulseCount : null;
   if (otxEl) otxEl.innerHTML = otxPulses != null
     ? `<span style="font-size:12px;color:${otxPulses > 0 ? 'var(--yellow)' : 'var(--muted)'}">${otxPulses}</span>`
-    : '<span style="color:var(--muted)">-</span>';
+    : nf;
 
   const tfHits = threatfox && !threatfox.skipped && !threatfox.error && !threatfox.notFound ? (threatfox.iocCount || 0) : null;
   if (tfEl) tfEl.innerHTML = tfHits != null
     ? `<span style="font-size:12px;color:${tfHits > 0 ? 'var(--red)' : 'var(--muted)'}">${tfHits}</span>`
-    : '<span style="color:var(--muted)">-</span>';
+    : nf;
 
   if (detEl) detEl.innerHTML = `<button class="btn-detail" onclick="openIPIntelModal(${i})">DETAIL</button>`;
 }
