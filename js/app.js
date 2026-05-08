@@ -8,9 +8,9 @@ const MODE_CONFIG = {
     placeholder: `Paste IOCs — one per line or comma/space separated\n\nExamples:\n  8.8.8.8\n  evil.example.com\n  https://malware.example.com/payload.exe\n  44d88612fea8a8f36de82e1278abb02f  (MD5)\n  1[.]2[.]3[.]4  (defanged)\n\nCtrl+Enter to analyze`,
   },
   ip: {
-    label: 'IP',
-    types: ['ip', 'ipv6'],
-    placeholder: `Paste IP addresses — one per line\n\nExamples:\n  8.8.8.8\n  1.1.1.1\n  2001:db8::1\n  1[.]2[.]3[.]4  (defanged)\n\nCtrl+Enter to analyze`,
+    label: 'IP / Network',
+    types: ['ip', 'ipv6', 'asn', 'cidr'],
+    placeholder: `Paste IPs, ASNs, or CIDRs — one per line\n\nExamples:\n  8.8.8.8\n  1[.]2[.]3[.]4  (defanged)\n  2001:db8::1\n  AS15169\n  8.8.8.0/24\n\nCtrl+Enter to analyze`,
   },
   hash: {
     label: 'Hash',

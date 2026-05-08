@@ -57,7 +57,7 @@ async function startScan() {
     scanResults.push({
       ioc, vt: null, ab: null, otx: null,
       urlscan: null, threatfox: null, urlhaus: null,
-      mb: null, ha: null, shodan: null, filescan: null,
+      mb: null, ha: null, shodan: null, filescan: null, bgpview: null,
       verdict: null, confidence: null, action: null,
       score: null, vtPts: null, abPts: null, mbPts: null, otxPts: null,
       tfPts: null, usPts: null, uhPts: null, haPts: null, fsPts: null,
@@ -100,21 +100,25 @@ async function startScan() {
 }
 
 /* Sources active per IOC type:
-   vt ab otx us tf uh mb ha sh fs
-   IP:     ✓  ✓  ✓   ✗  ✓  ✗  ✗  ✗  ✓  ✗
-   IPv6:   ✓  ✓  ✓   ✗  ✓  ✗  ✗  ✗  ✗  ✗
-   Hash:   ✓  ✗  ✓   ✗  ✓  ✗  ✓  ✓  ✗  ✓
-   Domain: ✓  ✗  ✓   ✓  ✓  ✗  ✗  ✗  ✗  ✗
-   URL:    ✓  ✗  ✓   ✓  ✗  ✓  ✗  ✗  ✗  ✗  */
+   vt ab otx us tf uh mb ha sh fs bv
+   IP:     ✓  ✓  ✓   ✗  ✓  ✗  ✗  ✗  ✓  ✗  ✗
+   IPv6:   ✓  ✓  ✓   ✗  ✓  ✗  ✗  ✗  ✗  ✗  ✗
+   Hash:   ✓  ✗  ✓   ✗  ✓  ✗  ✓  ✓  ✗  ✓  ✗
+   Domain: ✓  ✗  ✓   ✓  ✓  ✗  ✗  ✗  ✗  ✗  ✗
+   URL:    ✓  ✗  ✓   ✓  ✗  ✓  ✗  ✗  ✗  ✗  ✗
+   ASN:    ✗  ✗  ✓   ✗  ✗  ✗  ✗  ✗  ✗  ✗  ✓
+   CIDR:   ✗  ✗  ✗   ✗  ✗  ✗  ✗  ✗  ✗  ✗  ✓  */
 const TYPE_SOURCES = {
-  ip:          { ab:1, us:0, tf:1, uh:0, mb:0, ha:0, sh:1, fs:0 },
-  ipv6:        { ab:1, us:0, tf:1, uh:0, mb:0, ha:0, sh:0, fs:0 },
-  hash_md5:    { ab:0, us:0, tf:1, uh:0, mb:1, ha:1, sh:0, fs:1 },
-  hash_sha1:   { ab:0, us:0, tf:1, uh:0, mb:1, ha:1, sh:0, fs:1 },
-  hash_sha256: { ab:0, us:0, tf:1, uh:0, mb:1, ha:1, sh:0, fs:1 },
-  hash_sha512: { ab:0, us:0, tf:1, uh:0, mb:1, ha:0, sh:0, fs:1 },
-  domain:      { ab:0, us:1, tf:1, uh:0, mb:0, ha:0, sh:0, fs:0 },
-  url:         { ab:0, us:1, tf:0, uh:1, mb:0, ha:0, sh:0, fs:0 },
+  ip:          { ab:1, us:0, tf:1, uh:0, mb:0, ha:0, sh:1, fs:0, bv:0 },
+  ipv6:        { ab:1, us:0, tf:1, uh:0, mb:0, ha:0, sh:0, fs:0, bv:0 },
+  hash_md5:    { ab:0, us:0, tf:1, uh:0, mb:1, ha:1, sh:0, fs:1, bv:0 },
+  hash_sha1:   { ab:0, us:0, tf:1, uh:0, mb:1, ha:1, sh:0, fs:1, bv:0 },
+  hash_sha256: { ab:0, us:0, tf:1, uh:0, mb:1, ha:1, sh:0, fs:1, bv:0 },
+  hash_sha512: { ab:0, us:0, tf:1, uh:0, mb:1, ha:0, sh:0, fs:1, bv:0 },
+  domain:      { ab:0, us:1, tf:1, uh:0, mb:0, ha:0, sh:0, fs:0, bv:0 },
+  url:         { ab:0, us:1, tf:0, uh:1, mb:0, ha:0, sh:0, fs:0, bv:0 },
+  asn:         { ab:0, us:0, tf:0, uh:0, mb:0, ha:0, sh:0, fs:0, bv:1 },
+  cidr:        { ab:0, us:0, tf:0, uh:0, mb:0, ha:0, sh:0, fs:0, bv:1 },
 };
 
 async function runParallelScan(entry) {
@@ -130,16 +134,18 @@ async function runParallelScan(entry) {
     return;
   }
 
-  const m = TYPE_SOURCES[t] || { ab:0, us:0, tf:1, uh:0, mb:0, ha:0, sh:0 };
+  const m = TYPE_SOURCES[t] || { ab:0, us:0, tf:1, uh:0, mb:0, ha:0, sh:0, bv:0 };
   const off = (s, r) => Promise.resolve({ source: s, skipped: true, reason: r || 'N/A for this IOC type' });
+  const isNetCtx = t === 'asn' || t === 'cidr';
 
-  const vtP = (async () => {
+  const vtP = isNetCtx ? off('virustotal', 'N/A for network context types') : (async () => {
     await VtBucket.acquire();
     return fetchWithRetry(sig => API.virusTotal(ioc, sig)).catch(e => ({ source: 'virustotal', error: e.message }));
   })();
 
   const abP  = m.ab ? fetchWithRetry(sig => API.abuseIPDB(ioc, sig)).catch(e => ({ source: 'abuseipdb',    error: e.message })) : off('abuseipdb');
-  const otxP =        fetchWithRetry(sig => API.otx(ioc, sig))       .catch(e => ({ source: 'otx',          error: e.message }));
+  const otxP = isNetCtx && t !== 'asn' ? off('otx') :
+               fetchWithRetry(sig => API.otx(ioc, sig)).catch(e => ({ source: 'otx', error: e.message }));
   const usP  = m.us ? fetchWithRetry(sig => API.urlscan(ioc, sig))   .catch(e => ({ source: 'urlscan',      error: e.message })) : off('urlscan');
   const tfP  = m.tf ? fetchWithRetry(sig => API.threatfox(ioc, sig)) .catch(e => ({ source: 'threatfox',    error: e.message })) : off('threatfox');
   const uhP  = m.uh ? fetchWithRetry(sig => API.urlhaus(ioc, sig))   .catch(e => ({ source: 'urlhaus',      error: e.message })) : off('urlhaus');
@@ -147,13 +153,15 @@ async function runParallelScan(entry) {
   const haP  = m.ha ? fetchWithRetry(sig => API.hybridanalysis(ioc, sig)).catch(e => ({ source: 'hybridanalysis', error: e.message })) : off('hybridanalysis');
   const shP  = m.sh ? fetchWithRetry(sig => API.shodan(ioc, sig))    .catch(e => ({ source: 'shodan',       error: e.message })) : off('shodan');
   const fsP  = m.fs ? fetchWithRetry(sig => API.filescan(ioc, sig))  .catch(e => ({ source: 'filescan',     error: e.message })) : off('filescan');
+  const bvP  = m.bv ? fetchWithRetry(sig => API.bgpview(ioc, sig))   .catch(e => ({ source: 'bgpview',      error: e.message })) : off('bgpview');
 
-  const [vt, ab, otx, urlscan, threatfox, urlhaus, mb, ha, shodan, filescan] =
-    await Promise.all([vtP, abP, otxP, usP, tfP, uhP, mbP, haP, shP, fsP]);
+  const [vt, ab, otx, urlscan, threatfox, urlhaus, mb, ha, shodan, filescan, bgpview] =
+    await Promise.all([vtP, abP, otxP, usP, tfP, uhP, mbP, haP, shP, fsP, bvP]);
 
   entry.vt = vt; entry.ab = ab; entry.otx = otx;
   entry.urlscan = urlscan; entry.threatfox = threatfox; entry.urlhaus = urlhaus;
   entry.mb = mb; entry.ha = ha; entry.shodan = shodan; entry.filescan = filescan;
+  entry.bgpview = bgpview;
 }
 
 /* Scoring weights:
@@ -168,6 +176,8 @@ function scoreEntry(entry) {
   const iocIsHash = t.startsWith('hash_');
   const iocIsDom  = t === 'domain';
   const iocIsUrl  = t === 'url';
+  const iocIsASN  = t === 'asn';
+  const iocIsCIDR = t === 'cidr';
 
   let vtPts = 0, abPts = 0, mbPts = 0, otxPts = 0;
   let tfPts = 0, usPts = 0, uhPts = 0, haPts = 0, fsPts = 0;
@@ -196,11 +206,12 @@ function scoreEntry(entry) {
     else if (s >= 25) reasons.push(`Moderate abuse score (${s}%) on AbuseIPDB`);
   }
 
-  /* OTX — max 10 */
+  /* OTX — max 10 normally; max 100 for ASN (sole scoring source) */
   if (otx && !otx.skipped && !otx.error) {
     sourcesChecked++;
     const p = otx.pulseCount || 0;
-    otxPts = Math.min(10, Math.round((p / 5) * 10));
+    const otxMax = iocIsASN ? 100 : 10;
+    otxPts = Math.min(otxMax, Math.round((p / 5) * otxMax));
     if (p > 0) {
       indicators.push(`OTX: ${p} pulse${p > 1 ? 's' : ''}`);
       reasons.push(`Listed in ${p} OTX pulse${p > 1 ? 's' : ''}`);
@@ -289,6 +300,8 @@ function scoreEntry(entry) {
   if      (iocIsIP)   score = Math.min(100, vtPts + abPts  + otxPts + tfPts);
   else if (iocIsHash) score = Math.min(100, vtPts + mbPts  + otxPts + tfPts + haPts + fsPts);
   else if (iocIsDom)  score = Math.min(100, vtPts + usPts  + otxPts + tfPts);
+  else if (iocIsASN)  score = Math.min(100, otxPts);
+  else if (iocIsCIDR) score = 0;
   else                score = Math.min(100, vtPts + usPts  + otxPts + uhPts);
 
   /* Verdict */
@@ -311,8 +324,12 @@ function scoreEntry(entry) {
   };
   const { confidence, action } = verdictMeta[verdict];
 
-  if (!reasons.length)
-    reasons.push(sourcesChecked === 0 ? 'Sources pending or unavailable' : 'No threat signals detected');
+  if (iocIsCIDR) score = null;
+
+  if (!reasons.length) {
+    if (iocIsCIDR) reasons.push('Context lookup — no threat scoring');
+    else reasons.push(sourcesChecked === 0 ? 'Sources pending or unavailable' : 'No threat signals detected');
+  }
 
   return {
     score, vtPts, abPts, mbPts, otxPts, tfPts, usPts, uhPts, haPts, fsPts,

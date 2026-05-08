@@ -16,7 +16,7 @@ export default async function handler(req, res) {
   const allowed = [
     '/api/v1/indicators/IPv4/', '/api/v1/indicators/IPv6/',
     '/api/v1/indicators/domain/', '/api/v1/indicators/url/',
-    '/api/v1/indicators/file/',
+    '/api/v1/indicators/file/', '/api/v1/indicators/ASN/',
   ];
   if (!allowed.some(p => decodedPath.startsWith(p))) {
     return res.status(400).json({ error: 'Endpoint not allowed' });
