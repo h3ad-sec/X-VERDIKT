@@ -162,6 +162,18 @@ const API = {
       return t === 'asn' ? parseBGPViewASNResponse(data, ioc.value) : parseBGPViewPrefixResponse(data, ioc.value);
     } catch(e) { return { source: 'bgpview', error: fmtErr(e) }; }
   },
+
+  async iplocate(ioc, signal) {
+    const t = ioc.type;
+    if (t !== 'ip' && t !== 'ipv6')
+      return { source: 'iplocate', skipped: true, reason: 'IP only' };
+    try {
+      const resp = await fetch(`${SERVER_BASE}/api/iplocate?ip=${encodeURIComponent(ioc.value)}`, { signal });
+      if (resp.status === 404) return { source: 'iplocate', notFound: true };
+      if (!resp.ok) return { source: 'iplocate', error: `HTTP ${resp.status}` };
+      return parseIPLocateResponse(await resp.json());
+    } catch(e) { return { source: 'iplocate', error: fmtErr(e) }; }
+  },
 };
 
 
@@ -541,6 +553,40 @@ function parseFileScanResponse(data, iocValue) {
     notFound: false,
     link: iocValue ? `https://www.filescan.io/search?query=${encodeURIComponent(iocValue)}` : null,
     raw: data,
+  };
+}
+
+/* ── IPLocate parser ─────────────────────────────────────────────────────── */
+function parseIPLocateResponse(data) {
+  if (!data || data.error) return { source: 'iplocate', error: data?.error || 'No data' };
+  const p = data.privacy || data;
+  return {
+    source: 'iplocate',
+    ip: data.ip || null,
+    country: data.country || null,
+    country_code: data.country_code || null,
+    city: data.city || null,
+    subdivision: data.subdivision || null,
+    continent: data.continent || null,
+    latitude: data.latitude ?? null,
+    longitude: data.longitude ?? null,
+    time_zone: data.time_zone || null,
+    postal_code: data.postal_code || null,
+    network: data.network || null,
+    asn: data.asn || null,
+    asn_name: data.org_name || null,
+    isp: data.isp || null,
+    organization: data.org_name || null,
+    domain: data.domain || null,
+    is_anonymous: p.is_anonymous ?? false,
+    is_vpn: p.is_vpn ?? false,
+    is_proxy: p.is_proxy ?? false,
+    is_tor: p.is_tor ?? false,
+    is_hosting: p.is_hosting ?? false,
+    is_relay: p.is_relay ?? false,
+    is_icloud_relay: p.is_icloud_relay ?? false,
+    is_crawler: p.is_crawler ?? false,
+    is_bogon: p.is_bogon ?? false,
   };
 }
 

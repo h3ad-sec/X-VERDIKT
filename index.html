@@ -193,6 +193,11 @@
               <div class="mt-sub">Domains · URLs</div>
               <div class="mt-count" id="mcount-domain"></div>
             </button>
+            <button class="mode-tab" data-mode="ipintel" onclick="switchMode('ipintel',this)">
+              <div class="mt-label" style="color:var(--accent)">IP INTEL</div>
+              <div class="mt-sub">Deep IP Enrichment</div>
+              <div class="mt-count" id="mcount-ipintel"></div>
+            </button>
           </div>
           <div class="input-tabs">
             <button class="input-tab active" onclick="switchInputTab('text',this)">PASTE / TYPE</button>
@@ -317,6 +322,37 @@
               </tr>
             </thead>
             <tbody id="results-body"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="panel" id="ipintel-panel" style="display:none">
+        <div class="panel-header-static">
+          <div class="panel-title">
+            <svg width="13" height="13" viewBox="0 0 13 13" fill="none">
+              <circle cx="6.5" cy="6.5" r="5.5" stroke="var(--accent)" stroke-width="1"/>
+              <path d="M6.5 4v3l2 1.5" stroke="var(--accent)" stroke-width="1" stroke-linecap="round"/>
+            </svg>
+            IP INTEL RESULTS
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table class="results-table ipintel-table">
+            <thead>
+              <tr>
+                <th class="col-ioc">IP</th>
+                <th class="col-geo">GEO</th>
+                <th class="col-network">NETWORK</th>
+                <th class="col-isp">ISP / ORG</th>
+                <th class="col-iflags">FLAGS</th>
+                <th class="col-iab">AB</th>
+                <th class="col-ivt">VT</th>
+                <th class="col-iotx">OTX</th>
+                <th class="col-itf">TF</th>
+                <th class="col-idetail">DETAIL</th>
+              </tr>
+            </thead>
+            <tbody id="ipintel-body"></tbody>
           </table>
         </div>
       </section>

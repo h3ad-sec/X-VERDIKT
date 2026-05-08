@@ -978,3 +978,221 @@ function scanSingleIOC() {
 function scanSingleIP() { scanSingleIOC(); }
 
 function updateVTPaidUI() {}
+
+/* ── IP Intel rendering ──────────────────────────────────────────────────── */
+function renderIPIntelRows(results) {
+  document.getElementById('ipintel-body').innerHTML = results.map((e, i) => buildIPIntelRow(e, i)).join('');
+}
+
+function buildIPIntelRow(entry, i) {
+  const { ioc, iplocate, ab, vt, otx, threatfox, done } = entry;
+  const il = (iplocate && !iplocate.skipped && !iplocate.error && !iplocate.notFound) ? iplocate : null;
+
+  const country = il?.country_code || il?.country || (done ? '-' : '…');
+  const city = il?.city ? ` / ${escapeHtml(il.city)}` : '';
+  const geoHtml = il ? `${escapeHtml(country)}${city}` : (done ? '<span style="color:var(--muted)">-</span>' : '<span class="src-loading">…</span>');
+
+  const asn = il?.asn || '';
+  const asnName = il?.asn_name || '';
+  const netHtml = il && asn
+    ? `<div style="font-size:11px;color:var(--accent2)">${escapeHtml(asn)}</div><div style="font-size:10px;color:var(--muted)">${escapeHtml(truncate(asnName, 22))}</div>`
+    : (done ? '<span style="color:var(--muted)">-</span>' : '<span class="src-loading">…</span>');
+
+  const ispOrg = il?.isp || il?.organization || '';
+  const ispHtml = ispOrg
+    ? `<div style="font-size:11px">${escapeHtml(truncate(ispOrg, 24))}</div>`
+    : (done ? '<span style="color:var(--muted)">-</span>' : '<span class="src-loading">…</span>');
+
+  const flagsHtml = done ? buildIPIntelFlags(il) : '<span class="src-loading">…</span>';
+
+  const abScore = ab && !ab.skipped && !ab.error ? ab.score : null;
+  const abHtml = done
+    ? (abScore != null ? `<span style="font-size:12px;font-weight:600;color:${abScore >= 75 ? 'var(--red)' : abScore >= 25 ? 'var(--yellow)' : 'var(--accent)'}">${abScore}%</span>` : '<span style="color:var(--muted)">-</span>')
+    : '<span class="src-loading">…</span>';
+
+  const vtMal   = vt && !vt.skipped && !vt.error && vt.total > 0 ? vt.malicious : null;
+  const vtTotal = vt && !vt.skipped && !vt.error && vt.total > 0 ? vt.total : null;
+  const vtHtml = done
+    ? (vtTotal != null ? `<span style="font-size:12px;color:${vtMal > 0 ? 'var(--red)' : 'var(--accent)'}">${vtMal}/${vtTotal}</span>` : '<span style="color:var(--muted)">-</span>')
+    : '<span class="src-loading">…</span>';
+
+  const otxPulses = otx && !otx.skipped && !otx.error ? otx.pulseCount : null;
+  const otxHtml = done
+    ? (otxPulses != null ? `<span style="font-size:12px;color:${otxPulses > 0 ? 'var(--yellow)' : 'var(--muted)'}">${otxPulses}</span>` : '<span style="color:var(--muted)">-</span>')
+    : '<span class="src-loading">…</span>';
+
+  const tfHits = threatfox && !threatfox.skipped && !threatfox.error && !threatfox.notFound ? (threatfox.iocCount || 0) : null;
+  const tfHtml = done
+    ? (tfHits != null ? `<span style="font-size:12px;color:${tfHits > 0 ? 'var(--red)' : 'var(--muted)'}">${tfHits}</span>` : '<span style="color:var(--muted)">-</span>')
+    : '<span class="src-loading">…</span>';
+
+  const detailHtml = done
+    ? `<button class="btn-detail" onclick="openIPIntelModal(${i})">DETAIL</button>`
+    : '<span class="src-loading">…</span>';
+
+  return `<tr data-row="${i}">
+    <td class="td-ioc">
+      <div class="ioc-val-wrap">
+        <span class="ioc-val" title="${escapeAttr(ioc.value)}">${escapeHtml(ioc.value)}</span>
+        <button class="ioc-copy-btn" onclick="copyToClipboard('${escapeAttr(ioc.value)}')" title="Copy">⎘</button>
+      </div>
+    </td>
+    <td id="ii-geo-${i}">${geoHtml}</td>
+    <td id="ii-net-${i}">${netHtml}</td>
+    <td id="ii-isp-${i}">${ispHtml}</td>
+    <td id="ii-fl-${i}">${flagsHtml}</td>
+    <td id="ii-ab-${i}">${abHtml}</td>
+    <td id="ii-vt-${i}">${vtHtml}</td>
+    <td id="ii-otx-${i}">${otxHtml}</td>
+    <td id="ii-tf-${i}">${tfHtml}</td>
+    <td id="ii-det-${i}">${detailHtml}</td>
+  </tr>`;
+}
+
+function buildIPIntelFlags(il) {
+  if (!il) return '<span style="color:var(--muted);font-size:11px">-</span>';
+  const defs = [
+    ['is_vpn',         'VPN',     '#facc15'],
+    ['is_tor',         'TOR',     'var(--red)'],
+    ['is_proxy',       'PROXY',   '#facc15'],
+    ['is_hosting',     'HOSTING', 'var(--accent2)'],
+    ['is_relay',       'RELAY',   'var(--accent2)'],
+    ['is_icloud_relay','iCLOUD',  'var(--accent2)'],
+    ['is_anonymous',   'ANON',    '#facc15'],
+    ['is_crawler',     'CRAWLER', 'var(--muted)'],
+    ['is_bogon',       'BOGON',   'var(--red)'],
+  ];
+  const active = defs.filter(([k]) => il[k] === true);
+  if (!active.length) return '<span style="color:var(--accent);font-size:11px">CLEAN</span>';
+  return active.map(([, label, color]) =>
+    `<span class="ipi-flag" style="color:${color};border-color:${color}30">${label}</span>`
+  ).join('');
+}
+
+function updateIPIntelRow(i, entry) {
+  const { iplocate, ab, vt, otx, threatfox } = entry;
+  const il = (iplocate && !iplocate.skipped && !iplocate.error && !iplocate.notFound) ? iplocate : null;
+
+  const geoEl  = document.getElementById(`ii-geo-${i}`);
+  const netEl  = document.getElementById(`ii-net-${i}`);
+  const ispEl  = document.getElementById(`ii-isp-${i}`);
+  const flEl   = document.getElementById(`ii-fl-${i}`);
+  const abEl   = document.getElementById(`ii-ab-${i}`);
+  const vtEl   = document.getElementById(`ii-vt-${i}`);
+  const otxEl  = document.getElementById(`ii-otx-${i}`);
+  const tfEl   = document.getElementById(`ii-tf-${i}`);
+  const detEl  = document.getElementById(`ii-det-${i}`);
+
+  const country = il?.country_code || il?.country || '';
+  const city = il?.city ? ` / ${escapeHtml(il.city)}` : '';
+  if (geoEl) geoEl.innerHTML = il ? `${escapeHtml(country)}${city}` : '<span style="color:var(--muted)">-</span>';
+
+  const asn = il?.asn || '';
+  const asnName = il?.asn_name || '';
+  if (netEl) netEl.innerHTML = asn
+    ? `<div style="font-size:11px;color:var(--accent2)">${escapeHtml(asn)}</div><div style="font-size:10px;color:var(--muted)">${escapeHtml(truncate(asnName, 22))}</div>`
+    : '<span style="color:var(--muted)">-</span>';
+
+  const ispOrg = il?.isp || il?.organization || '';
+  if (ispEl) ispEl.innerHTML = ispOrg ? `<div style="font-size:11px">${escapeHtml(truncate(ispOrg, 24))}</div>` : '<span style="color:var(--muted)">-</span>';
+
+  if (flEl) flEl.innerHTML = buildIPIntelFlags(il);
+
+  const abScore = ab && !ab.skipped && !ab.error ? ab.score : null;
+  if (abEl) abEl.innerHTML = abScore != null
+    ? `<span style="font-size:12px;font-weight:600;color:${abScore >= 75 ? 'var(--red)' : abScore >= 25 ? 'var(--yellow)' : 'var(--accent)'}">${abScore}%</span>`
+    : '<span style="color:var(--muted)">-</span>';
+
+  const vtMal   = vt && !vt.skipped && !vt.error && vt.total > 0 ? vt.malicious : null;
+  const vtTotal = vt && !vt.skipped && !vt.error && vt.total > 0 ? vt.total : null;
+  if (vtEl) vtEl.innerHTML = vtTotal != null
+    ? `<span style="font-size:12px;color:${vtMal > 0 ? 'var(--red)' : 'var(--accent)'}">${vtMal}/${vtTotal}</span>`
+    : '<span style="color:var(--muted)">-</span>';
+
+  const otxPulses = otx && !otx.skipped && !otx.error ? otx.pulseCount : null;
+  if (otxEl) otxEl.innerHTML = otxPulses != null
+    ? `<span style="font-size:12px;color:${otxPulses > 0 ? 'var(--yellow)' : 'var(--muted)'}">${otxPulses}</span>`
+    : '<span style="color:var(--muted)">-</span>';
+
+  const tfHits = threatfox && !threatfox.skipped && !threatfox.error && !threatfox.notFound ? (threatfox.iocCount || 0) : null;
+  if (tfEl) tfEl.innerHTML = tfHits != null
+    ? `<span style="font-size:12px;color:${tfHits > 0 ? 'var(--red)' : 'var(--muted)'}">${tfHits}</span>`
+    : '<span style="color:var(--muted)">-</span>';
+
+  if (detEl) detEl.innerHTML = `<button class="btn-detail" onclick="openIPIntelModal(${i})">DETAIL</button>`;
+}
+
+function openIPIntelModal(i) {
+  const entry = ipIntelResults[i];
+  if (!entry) return;
+  const { ioc, iplocate, ab, vt, otx, threatfox } = entry;
+  const il = (iplocate && !iplocate.skipped && !iplocate.error && !iplocate.notFound) ? iplocate : null;
+
+  const abScore    = ab && !ab.skipped && !ab.error ? ab.score : null;
+  const vtMal      = vt && !vt.skipped && !vt.error ? vt.malicious : null;
+  const vtTotal    = vt && !vt.skipped && !vt.error ? vt.total : null;
+  const otxPulses  = otx && !otx.skipped && !otx.error ? otx.pulseCount : null;
+  const tfHits     = threatfox && !threatfox.skipped && !threatfox.error && !threatfox.notFound ? (threatfox.iocCount || 0) : null;
+
+  const row = (label, val) => {
+    const isBool = typeof val === 'boolean';
+    const color = isBool ? (val ? 'var(--red)' : 'var(--accent)') : 'var(--text)';
+    const display = isBool ? (val ? 'true' : 'false') : escapeHtml(String(val ?? '-'));
+    return `<tr><td class="iim-key">${escapeHtml(label)}</td><td class="iim-val" style="color:${color}">${display}</td></tr>`;
+  };
+
+  const flagsHtml = buildIPIntelFlags(il);
+
+  const html = `<div class="iim-wrap">
+    <div class="iim-section-label">LOCATION</div>
+    <table class="iim-table">
+      ${row('Country', il?.country || null)}
+      ${row('Country Code', il?.country_code || null)}
+      ${row('City', il?.city || null)}
+      ${row('Subdivision', il?.subdivision || null)}
+      ${row('Continent', il?.continent || null)}
+      ${row('Time Zone', il?.time_zone || null)}
+      ${row('Postal Code', il?.postal_code || null)}
+    </table>
+    <div class="iim-section-label">NETWORK</div>
+    <table class="iim-table">
+      ${row('Network', il?.network || null)}
+      ${row('ASN', il?.asn || null)}
+      ${row('ASN Name', il?.asn_name || null)}
+      ${row('ISP', il?.isp || null)}
+      ${row('Organization', il?.organization || null)}
+      ${row('Domain', il?.domain || ab?.domain || null)}
+    </table>
+    <div class="iim-section-label">PRIVACY / THREAT FLAGS</div>
+    <div style="margin-bottom:12px">${flagsHtml}</div>
+    <table class="iim-table">
+      ${row('is_anonymous', il?.is_anonymous ?? null)}
+      ${row('is_vpn', il?.is_vpn ?? null)}
+      ${row('is_proxy', il?.is_proxy ?? null)}
+      ${row('is_tor', il?.is_tor ?? null)}
+      ${row('is_hosting', il?.is_hosting ?? null)}
+      ${row('is_relay', il?.is_relay ?? null)}
+      ${row('is_icloud_relay', il?.is_icloud_relay ?? null)}
+      ${row('is_crawler', il?.is_crawler ?? null)}
+      ${row('is_bogon', il?.is_bogon ?? null)}
+    </table>
+    <div class="iim-section-label">THREAT INTELLIGENCE</div>
+    <table class="iim-table">
+      ${row('AbuseIPDB Score', abScore != null ? abScore + '%' : null)}
+      ${row('AbuseIPDB Domain', ab?.domain || null)}
+      ${row('VirusTotal', vtTotal != null ? vtMal + '/' + vtTotal + ' malicious' : null)}
+      ${row('OTX Pulses', otxPulses ?? null)}
+      ${row('ThreatFox Hits', tfHits ?? null)}
+    </table>
+    <div class="iim-links">
+      ${vt?.link ? `<a href="${escapeAttr(vt.link)}" target="_blank" rel="noopener" class="modal-ext-link">VirusTotal ↗</a>` : ''}
+      ${otx?.link ? `<a href="${escapeAttr(otx.link)}" target="_blank" rel="noopener" class="modal-ext-link">OTX ↗</a>` : ''}
+      ${ab?.link ? `<a href="${escapeAttr(ab.link)}" target="_blank" rel="noopener" class="modal-ext-link">AbuseIPDB ↗</a>` : ''}
+    </div>
+  </div>`;
+
+  document.getElementById('modal-title').innerHTML = `IP INTEL <span style="color:var(--accent2)">${escapeHtml(ioc.value)}</span>`;
+  document.getElementById('modal-header-actions').innerHTML = '';
+  document.getElementById('modal-body').innerHTML = html;
+  document.getElementById('modal-overlay').classList.add('open');
+}

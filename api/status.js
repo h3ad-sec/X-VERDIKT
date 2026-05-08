@@ -15,6 +15,7 @@ export default async function handler(req, res) {
     abusech:         !!process.env.ABUSECH_AUTH_KEY,
     threatfox:       !!process.env.THREATFOX_API_KEY,
     filescan:        !!process.env.FILESCAN_API_KEY,
+    iplocate:        !!process.env.IPLOCATE_API_KEY,
     vt_paid:         process.env.VT_PAID === 'true',
   });
 }

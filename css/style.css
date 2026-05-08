@@ -241,6 +241,26 @@ body.light .btn-primary{color:#fff;}
 .type-asn   {color:#38bdf8;border-color:rgba(56,189,248,.25);background:rgba(56,189,248,.04);}
 .type-cidr  {color:#818cf8;border-color:rgba(129,140,248,.25);background:rgba(129,140,248,.04);}
 
+/* ── IP Intel table ─────────────────────────────────────────────────────── */
+.col-geo     {min-width:80px;}
+.col-network {min-width:100px;}
+.col-isp     {min-width:110px;}
+.col-iflags  {min-width:120px;}
+.col-iab     {min-width:50px;text-align:center;}
+.col-ivt     {min-width:55px;text-align:center;}
+.col-iotx    {min-width:40px;text-align:center;}
+.col-itf     {min-width:40px;text-align:center;}
+.col-idetail {min-width:60px;}
+.ipi-flag{display:inline-block;font-family:var(--mono);font-size:9px;font-weight:700;letter-spacing:.06em;padding:2px 5px;border:1px solid;border-radius:2px;margin:1px 2px 1px 0;}
+/* ── IP Intel modal ─────────────────────────────────────────────────────── */
+.iim-wrap{padding:20px 24px;}
+.iim-title{font-family:var(--mono);font-size:14px;font-weight:700;letter-spacing:.05em;margin-bottom:18px;}
+.iim-section-label{font-family:var(--mono);font-size:9px;font-weight:700;letter-spacing:.12em;color:var(--muted);text-transform:uppercase;margin:14px 0 6px;border-bottom:1px solid var(--border);padding-bottom:4px;}
+.iim-table{border-collapse:collapse;width:100%;margin-bottom:4px;}
+.iim-key{font-family:var(--mono);font-size:11px;color:var(--muted);padding:3px 10px 3px 0;white-space:nowrap;width:140px;}
+.iim-val{font-family:var(--mono);font-size:12px;color:var(--text);padding:3px 0;}
+.iim-links{display:flex;gap:8px;flex-wrap:wrap;margin-top:16px;}
+
 /* Verdict cell */
 .verdict-cell{display:flex;flex-direction:column;gap:5px;}
 .verdict-pending-cell{display:flex;align-items:center;gap:8px;color:var(--muted);font-family:var(--mono);font-size:var(--fs-sm);}

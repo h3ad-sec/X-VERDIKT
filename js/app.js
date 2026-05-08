@@ -22,6 +22,11 @@ const MODE_CONFIG = {
     types: ['domain', 'url'],
     placeholder: `Paste domains or URLs — one per line\n\nExamples:\n  evil.example.com\n  malware[.]example.com  (defanged)\n  https://malware.example.com/payload.exe\n  hxxps://phishing[.]site/login\n\nCtrl+Enter to analyze`,
   },
+  ipintel: {
+    label: 'IP INTEL',
+    types: ['ip', 'ipv6'],
+    placeholder: `Paste IPs — one per line or comma/space separated\n\nExamples:\n  8.8.8.8\n  1.1.1.1\n  2001:db8::1\n  1[.]2[.]3[.]4  (defanged)\n\nDeep enrichment: Location · ASN · Privacy flags · AbuseIPDB · VirusTotal · OTX · ThreatFox\n\nCtrl+Enter to analyze`,
+  },
 };
 
 function filterIOCsByMode(iocs, mode) {

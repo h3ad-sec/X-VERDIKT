@@ -36,6 +36,9 @@ async function fetchWithRetry(fn, retries = 2, ms = 10000) {
 }
 
 async function startScan() {
+  if (typeof currentMode !== 'undefined' && currentMode === 'ipintel') {
+    return startIPIntelScan();
+  }
   const raw = getInputText();
   if (!raw?.trim()) return;
 
@@ -365,3 +368,76 @@ function updateProgress(done, total, label) {
 function updateProgressSub(msg) { const el = document.getElementById('progress-sub'); if (el) el.innerHTML = `<span style="color:var(--yellow)">${escapeHtml(msg)}</span>`; }
 function updateHeaderCount() { const el = document.getElementById('session-count'); if (el) el.textContent = totalScanned; }
 function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+/* ── IP Intel scan ───────────────────────────────────────────────────────── */
+let ipIntelResults = [];
+
+async function startIPIntelScan() {
+  const raw = getInputText();
+  if (!raw?.trim()) return;
+
+  let { iocs } = parseIOCsWithMeta(raw);
+  iocs = iocs.filter(i => i.type === 'ip' || i.type === 'ipv6');
+  if (!iocs.length) { showToast('No IPv4/IPv6 addresses found', 'error'); return; }
+
+  const privateCount = iocs.filter(i => i.isPrivate).length;
+  if (privateCount > 0)
+    showToast(`${privateCount} private IP${privateCount > 1 ? 's' : ''} detected — will skip external queries`, 'warning');
+
+  VtBucket.paid = window._serverVTPaid === true;
+  VtBucket.tokens = 4; VtBucket.lastRefill = Date.now();
+
+  isScanning = true; stopRequested = false; ipIntelResults = []; totalScanned = 0;
+
+  for (const ioc of iocs) {
+    ipIntelResults.push({ ioc, iplocate: null, ab: null, vt: null, otx: null, threatfox: null, done: false });
+  }
+
+  document.getElementById('results-panel').style.display = 'none';
+  document.getElementById('ipintel-panel').style.display = '';
+  document.getElementById('progress-container').style.display = '';
+  setScanBtnState('scanning');
+  renderIPIntelRows(ipIntelResults);
+
+  for (let i = 0; i < iocs.length; i++) {
+    if (stopRequested) break;
+    const ioc = iocs[i], entry = ipIntelResults[i];
+    updateProgress(i, iocs.length, ioc.value);
+    await runIPIntelParallelScan(entry);
+    entry.done = true;
+    totalScanned++;
+    updateIPIntelRow(i, entry);
+  }
+
+  isScanning = false;
+  updateProgress(totalScanned, iocs.length, stopRequested ? 'Stopped' : 'Complete');
+  setScanBtnState('idle');
+  setTimeout(() => { document.getElementById('progress-container').style.display = 'none'; }, 2000);
+  const n = iocs.length;
+  showToast(
+    stopRequested
+      ? `Stopped — ${totalScanned} IP${totalScanned !== 1 ? 's' : ''} enriched`
+      : `IP Intel complete — ${n} IP${n !== 1 ? 's' : ''} enriched`,
+    'success'
+  );
+}
+
+async function runIPIntelParallelScan(entry) {
+  const { ioc } = entry;
+  if (ioc.isPrivate) {
+    const skip = s => ({ source: s, skipped: true, reason: 'Private IP — skipped' });
+    entry.iplocate = skip('iplocate'); entry.ab = skip('abuseipdb');
+    entry.vt = skip('virustotal'); entry.otx = skip('otx'); entry.threatfox = skip('threatfox');
+    return;
+  }
+  const vtP = (async () => {
+    await VtBucket.acquire();
+    return fetchWithRetry(sig => API.virusTotal(ioc, sig)).catch(e => ({ source: 'virustotal', error: e.message }));
+  })();
+  const ilP  = fetchWithRetry(sig => API.iplocate(ioc, sig)).catch(e => ({ source: 'iplocate', error: e.message }));
+  const abP  = fetchWithRetry(sig => API.abuseIPDB(ioc, sig)).catch(e => ({ source: 'abuseipdb', error: e.message }));
+  const otxP = fetchWithRetry(sig => API.otx(ioc, sig)).catch(e => ({ source: 'otx', error: e.message }));
+  const tfP  = fetchWithRetry(sig => API.threatfox(ioc, sig)).catch(e => ({ source: 'threatfox', error: e.message }));
+  const [iplocate, ab, vt, otx, threatfox] = await Promise.all([ilP, abP, vtP, otxP, tfP]);
+  entry.iplocate = iplocate; entry.ab = ab; entry.vt = vt; entry.otx = otx; entry.threatfox = threatfox;
+}

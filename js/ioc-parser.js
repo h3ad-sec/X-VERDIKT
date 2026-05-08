@@ -122,10 +122,11 @@ function parseIOCsRealtime() {
 
   /* Update per-mode badge counts in the mode-tab blocks */
   const byMode = {
-    all:    meta.total,
-    ip:     meta.byType.ip + meta.byType.ipv6 + meta.byType.asn + meta.byType.cidr,
-    hash:   meta.byType.hash,
-    domain: meta.byType.domain + meta.byType.url,
+    all:     meta.total,
+    ip:      meta.byType.ip + meta.byType.ipv6 + meta.byType.asn + meta.byType.cidr,
+    hash:    meta.byType.hash,
+    domain:  meta.byType.domain + meta.byType.url,
+    ipintel: meta.byType.ip + meta.byType.ipv6,
   };
   for (const [m, n] of Object.entries(byMode)) {
     const el = document.getElementById(`mcount-${m}`);
