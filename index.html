@@ -335,25 +335,33 @@
             </svg>
             IP INTEL RESULTS
           </div>
+          <button class="btn btn-export" onclick="copyIPIntelTable()" title="Copy all rows as TSV">
+            <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+              <rect x="1" y="3" width="8" height="8" rx="1" stroke="currentColor" stroke-width="1.2"/>
+              <path d="M3 1h8v8" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>
+            </svg>
+            COPY ALL
+          </button>
+          <button class="btn btn-export" onclick="exportIPIntelExcel()" title="Export all fields to Excel">
+            <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+              <path d="M6 1v7M3 5l3 3 3-3M1 9v2h10V9" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+            EXPORT EXCEL
+          </button>
         </div>
         <div class="table-wrap">
           <table class="results-table ipintel-table">
             <thead>
               <tr>
-                <th class="col-ioc">IP</th>
+                <th class="col-ioc">IP ADDRESS</th>
                 <th class="col-icountry">COUNTRY</th>
-                <th class="col-icity">CITY</th>
-                <th class="col-inet">NETWORK</th>
-                <th class="col-iasn">ASN</th>
-                <th class="col-iasnname">ASN NAME</th>
-                <th class="col-iisp">ISP</th>
-                <th class="col-iorg">ORG</th>
+                <th class="col-iorg">ORGANIZATION</th>
                 <th class="col-idomain">DOMAIN</th>
-                <th class="col-iflags">FLAGS</th>
-                <th class="col-iab">ABUSEIPDB</th>
-                <th class="col-ivt">VIRUSTOTAL</th>
-                <th class="col-iotx">OTX</th>
-                <th class="col-itf">THREATFOX</th>
+                <th class="col-iab">ABUSEIPDB SCORE</th>
+                <th class="col-ivt">VIRUSTOTAL DETECTIONS</th>
+                <th class="col-iotx">OTX PULSES</th>
+                <th class="col-itf">THREATFOX HITS</th>
+                <th class="col-icopy"></th>
                 <th class="col-idetail"></th>
               </tr>
             </thead>

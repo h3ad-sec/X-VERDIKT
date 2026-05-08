@@ -541,34 +541,36 @@ function parseFileScanResponse(data, iocValue) {
 /* ── IPLocate parser ─────────────────────────────────────────────────────── */
 function parseIPLocateResponse(data) {
   if (!data || data.error) return { source: 'iplocate', error: data?.error || 'No data' };
-  const p = data.privacy || data;
+  const asnObj  = (data.asn && typeof data.asn === 'object')     ? data.asn     : {};
+  const company = (data.company && typeof data.company === 'object') ? data.company : {};
+  const p       = (data.privacy && typeof data.privacy === 'object') ? data.privacy : {};
   return {
-    source: 'iplocate',
-    ip: data.ip || null,
-    country: data.country || null,
-    country_code: data.country_code || null,
-    city: data.city || null,
-    subdivision: data.subdivision || null,
-    continent: data.continent || null,
-    latitude: data.latitude ?? null,
-    longitude: data.longitude ?? null,
-    time_zone: data.time_zone || null,
-    postal_code: data.postal_code || null,
-    network: data.network || null,
-    asn: data.asn || null,
-    asn_name: data.org_name || null,
-    isp: data.isp || null,
-    organization: data.org_name || null,
-    domain: data.domain || null,
-    is_anonymous: p.is_anonymous ?? false,
-    is_vpn: p.is_vpn ?? false,
-    is_proxy: p.is_proxy ?? false,
-    is_tor: p.is_tor ?? false,
-    is_hosting: p.is_hosting ?? false,
-    is_relay: p.is_relay ?? false,
+    source:          'iplocate',
+    ip:              data.ip           || null,
+    country:         data.country      || null,
+    country_code:    data.country_code || null,
+    city:            data.city         || null,
+    subdivision:     data.subdivision  || null,
+    continent:       data.continent    || null,
+    latitude:        data.latitude     ?? null,
+    longitude:       data.longitude    ?? null,
+    time_zone:       data.time_zone    || null,
+    postal_code:     data.postal_code  || null,
+    network:         asnObj.route      || null,
+    asn:             asnObj.asn        || null,
+    asn_name:        asnObj.name       || null,
+    isp:             asnObj.name       || company.name || null,
+    organization:    company.name      || asnObj.name  || null,
+    domain:          asnObj.domain     || company.domain || null,
+    is_anonymous:    p.is_anonymous    ?? false,
+    is_vpn:          p.is_vpn          ?? false,
+    is_proxy:        p.is_proxy        ?? false,
+    is_tor:          p.is_tor          ?? false,
+    is_hosting:      p.is_hosting      ?? false,
+    is_relay:        p.is_relay        ?? false,
     is_icloud_relay: p.is_icloud_relay ?? false,
-    is_crawler: p.is_crawler ?? false,
-    is_bogon: p.is_bogon ?? false,
+    is_crawler:      p.is_crawler      ?? false,
+    is_bogon:        p.is_bogon        ?? false,
   };
 }
 
