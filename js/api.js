@@ -155,7 +155,7 @@ const API = {
       return { source: 'bgpview', skipped: true, reason: 'ASN/CIDR only' };
     const type = t === 'asn' ? 'asn' : 'prefix';
     try {
-      const resp = await fetch(`${SERVER_BASE}/api/bgpview?type=${encodeURIComponent(type)}&q=${encodeURIComponent(ioc.value)}`, { signal });
+      const resp = await fetch(`${SERVER_BASE}/api/geo?src=bgpview&type=${encodeURIComponent(type)}&q=${encodeURIComponent(ioc.value)}`, { signal });
       if (resp.status === 404) return { source: 'bgpview', notFound: true };
       if (!resp.ok) return { source: 'bgpview', error: `HTTP ${resp.status}` };
       const data = await resp.json();
@@ -168,7 +168,7 @@ const API = {
     if (t !== 'ip' && t !== 'ipv6')
       return { source: 'iplocate', skipped: true, reason: 'IP only' };
     try {
-      const resp = await fetch(`${SERVER_BASE}/api/iplocate?ip=${encodeURIComponent(ioc.value)}`, { signal });
+      const resp = await fetch(`${SERVER_BASE}/api/geo?src=iplocate&ip=${encodeURIComponent(ioc.value)}`, { signal });
       if (resp.status === 404) return { source: 'iplocate', notFound: true };
       if (!resp.ok) return { source: 'iplocate', error: `HTTP ${resp.status}` };
       return parseIPLocateResponse(await resp.json());
