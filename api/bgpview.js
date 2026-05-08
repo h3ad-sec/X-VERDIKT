@@ -24,11 +24,19 @@ export default async function handler(req, res) {
   }
 
   try {
-    const upstream = await fetch(url, { headers: { 'Accept': 'application/json' } });
+    const upstream = await fetch(url, {
+      headers: { 'Accept': 'application/json', 'User-Agent': 'x-verdikt/1.0' },
+      signal: AbortSignal.timeout(8000),
+    });
     if (upstream.status === 404) return res.status(404).json({ error: 'Not found' });
-    const data = await upstream.json();
-    return res.status(upstream.status).json(data);
+    if (upstream.status === 429) return res.status(429).json({ error: 'BGPView rate limit' });
+    if (!upstream.ok) return res.status(502).json({ error: `BGPView returned ${upstream.status}` });
+    let data;
+    try { data = await upstream.json(); }
+    catch (_) { return res.status(502).json({ error: 'BGPView returned non-JSON response' }); }
+    return res.status(200).json(data);
   } catch (e) {
-    return res.status(500).json({ error: 'Upstream request failed', detail: e.message });
+    const isTimeout = e.name === 'TimeoutError' || e.name === 'AbortError';
+    return res.status(isTimeout ? 504 : 502).json({ error: isTimeout ? 'BGPView timed out' : 'Upstream request failed', detail: e.message });
   }
 }
