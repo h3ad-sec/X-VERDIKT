@@ -238,9 +238,6 @@ body.light .btn-primary{color:#fff;}
 .type-domain{color:#10b981;border-color:rgba(16,185,129,.25);background:rgba(16,185,129,.04);}
 .type-url   {color:#06b6d4;border-color:rgba(6,182,212,.25);background:rgba(6,182,212,.04);}
 .type-hash  {color:#f59e0b;border-color:rgba(245,158,11,.25);background:rgba(245,158,11,.04);}
-.type-asn   {color:#38bdf8;border-color:rgba(56,189,248,.25);background:rgba(56,189,248,.04);}
-.type-cidr  {color:#818cf8;border-color:rgba(129,140,248,.25);background:rgba(129,140,248,.04);}
-
 /* ── IP Intel table ─────────────────────────────────────────────────────── */
 .col-geo     {min-width:80px;}
 .col-network {min-width:100px;}

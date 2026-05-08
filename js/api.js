@@ -47,10 +47,6 @@ const API = {
     else if (t === 'domain')       section = `domain/${encodeURIComponent(ioc.value)}`;
     else if (t === 'url')          section = `url/${encodeURIComponent(ioc.value)}`;
     else if (t.startsWith('hash_'))section = `file/${encodeURIComponent(ioc.value)}`;
-    else if (t === 'asn') {
-      const num = ioc.value.replace(/^AS/i, '');
-      section = `ASN/${encodeURIComponent(num)}`;
-    }
     else return { source: 'otx', skipped: true, reason: 'Unsupported type' };
     const path = `/api/v1/indicators/${section}/general`;
     try {
@@ -147,20 +143,6 @@ const API = {
       if (!resp.ok) return { source: 'filescan', error: `HTTP ${resp.status}` };
       return parseFileScanResponse(await resp.json(), ioc.value);
     } catch(e) { return { source: 'filescan', error: fmtErr(e) }; }
-  },
-
-  async bgpview(ioc, signal) {
-    const t = ioc.type;
-    if (t !== 'asn' && t !== 'cidr')
-      return { source: 'bgpview', skipped: true, reason: 'ASN/CIDR only' };
-    const type = t === 'asn' ? 'asn' : 'prefix';
-    try {
-      const resp = await fetch(`${SERVER_BASE}/api/geo?src=bgpview&type=${encodeURIComponent(type)}&q=${encodeURIComponent(ioc.value)}`, { signal });
-      if (resp.status === 404) return { source: 'bgpview', notFound: true };
-      if (!resp.ok) return { source: 'bgpview', error: `HTTP ${resp.status}` };
-      const data = await resp.json();
-      return t === 'asn' ? parseBGPViewASNResponse(data, ioc.value) : parseBGPViewPrefixResponse(data, ioc.value);
-    } catch(e) { return { source: 'bgpview', error: fmtErr(e) }; }
   },
 
   async iplocate(ioc, signal) {
@@ -282,9 +264,9 @@ function parseOTXResponse(data, iocType, iocValue) {
     if (p.adversary) adversaries.push(p.adversary);
   }
 
-  const otxSection = { ip: 'ip', ipv6: 'ipv6', domain: 'domain', url: 'url', asn: 'ASN' };
+  const otxSection = { ip: 'ip', ipv6: 'ipv6', domain: 'domain', url: 'url' };
   const linkBase = otxSection[iocType] || 'file';
-  const linkVal  = iocType === 'url' ? encodeURI(iocValue) : iocType === 'asn' ? iocValue.replace(/^AS/i, '') : iocValue;
+  const linkVal  = iocType === 'url' ? encodeURI(iocValue) : iocValue;
 
   return {
     source: 'otx',
@@ -587,43 +569,6 @@ function parseIPLocateResponse(data) {
     is_icloud_relay: p.is_icloud_relay ?? false,
     is_crawler: p.is_crawler ?? false,
     is_bogon: p.is_bogon ?? false,
-  };
-}
-
-/* ── BGPView parsers ─────────────────────────────────────────────────────── */
-function parseBGPViewASNResponse(data, iocValue) {
-  const d = data?.data;
-  if (!d) return { source: 'bgpview', notFound: true };
-  const asnNum = d.asn || iocValue.replace(/^AS/i, '');
-  return {
-    source: 'bgpview',
-    asn: asnNum,
-    name: d.name || null,
-    org: d.description_short || d.description || null,
-    country: d.country_code || null,
-    rir: d.rir_allocation?.rir_name || null,
-    prefixCount: d.prefixes?.length || null,
-    website: d.website || null,
-    link: `https://bgpview.io/asn/${asnNum}`,
-    raw: data,
-  };
-}
-
-function parseBGPViewPrefixResponse(data, iocValue) {
-  const d = data?.data;
-  if (!d) return { source: 'bgpview', notFound: true };
-  const firstAsn = d.asns?.[0] || {};
-  return {
-    source: 'bgpview',
-    prefix: d.prefix || iocValue,
-    asn: firstAsn.asn || null,
-    name: firstAsn.name || null,
-    org: firstAsn.description || d.description || null,
-    country: d.country_code || firstAsn.country_code || null,
-    rir: d.rir_allocation?.rir_name || null,
-    parentPrefix: d.parent?.prefix || null,
-    link: `https://bgpview.io/prefix/${iocValue}`,
-    raw: data,
   };
 }
 

@@ -13,8 +13,6 @@ const TYPE_BADGES = {
   hash_sha1:   '<span class="type-badge type-hash">SHA-1</span>',
   hash_sha256: '<span class="type-badge type-hash">SHA-256</span>',
   hash_sha512: '<span class="type-badge type-hash">SHA-512</span>',
-  asn:         '<span class="type-badge type-asn">ASN</span>',
-  cidr:        '<span class="type-badge type-cidr">CIDR</span>',
 };
 
 /* ── Helpers ─────────────────────────────────────────────────────────────── */
@@ -61,7 +59,6 @@ function buildRow(entry, i) {
   const displayVal = ioc.type === 'url' || ioc.type.startsWith('hash_')
     ? truncate(ioc.value, 48) : ioc.value;
   const isHash    = ioc.type.startsWith('hash_');
-  const isNetCtx  = ioc.type === 'asn' || ioc.type === 'cidr';
 
   return `<tr data-row="${i}" data-verdict="${verdict||'pending'}" data-action="${action||''}" data-type="${escapeAttr(ioc.type)}" data-ioc="${escapeAttr(ioc.value)}">
     <td class="td-ioc">
@@ -73,9 +70,9 @@ function buildRow(entry, i) {
     </td>
     <td>${typeBadge}</td>
     <td id="v-${i}">${buildVerdictCell(verdict, score, confidence, done)}</td>
-    <td id="vt-${i}">${isNetCtx ? '<span style="color:var(--muted);font-size:11px">-</span>' : buildSourceScoreCell('vt', vtPts, entry.vt, done, (ioc.type==='ip'||ioc.type==='ipv6')?30:isHash?25:50)}</td>
-    <td id="ab-${i}">${isHash ? buildSourceScoreCell('mb', mbPts, entry.mb, done, 10) : (ioc.type==='ip'||ioc.type==='ipv6') ? buildSourceScoreCell('ab', abPts, entry.ab, done, 40) : isNetCtx ? buildBGPViewCell(entry.bgpview, done) : buildSourceScoreCell('us', usPts, entry.urlscan, done, 20)}</td>
-    <td id="otx-${i}">${buildSourceScoreCell('otx', otxPts, entry.otx, done, isNetCtx ? 100 : 10)}</td>
+    <td id="vt-${i}">${buildSourceScoreCell('vt', vtPts, entry.vt, done, (ioc.type==='ip'||ioc.type==='ipv6')?30:isHash?25:50)}</td>
+    <td id="ab-${i}">${isHash ? buildSourceScoreCell('mb', mbPts, entry.mb, done, 10) : (ioc.type==='ip'||ioc.type==='ipv6') ? buildSourceScoreCell('ab', abPts, entry.ab, done, 40) : buildSourceScoreCell('us', usPts, entry.urlscan, done, 20)}</td>
+    <td id="otx-${i}">${buildSourceScoreCell('otx', otxPts, entry.otx, done, 10)}</td>
     <td id="ha-${i}">${isHash ? buildSourceScoreCell('ha', haPts, entry.ha, done, 20) : buildSourceScoreCell('ha', null, entry.ha, done, 20)}</td>
     <td id="tf-${i}">${ioc.type==='url' ? buildSourceScoreCell('uh', uhPts, entry.urlhaus, done, 20) : buildSourceScoreCell('tf', tfPts, entry.threatfox, done, ioc.type.startsWith('hash_')?10:20)}</td>
     <td id="fs-${i}">${isHash ? buildSourceScoreCell('fs', fsPts, entry.filescan, done, 25) : '<span style="color:var(--muted);font-size:11px">-</span>'}</td>
@@ -164,23 +161,11 @@ function buildFlagsCell(flags, done) {
   }).join('');
 }
 
-function buildBGPViewCell(bv, done) {
-  if (!done) return '<span class="src-loading">…</span>';
-  if (!bv || bv.skipped || bv.notFound) return `<div class="src-score-cell"><span style="color:var(--muted);font-size:11px">-</span></div>`;
-  if (bv.error) return `<div class="src-score-cell"><span style="color:var(--muted);font-size:11px">${escapeHtml(truncate(bv.error, 18))}</span></div>`;
-  const name = bv.name || bv.org || 'Unknown';
-  const country = bv.country ? ` [${bv.country}]` : '';
-  return `<div class="src-score-cell">
-    <div class="src-val" style="color:var(--accent2)">${escapeHtml(truncate(name, 16))}${escapeHtml(country)}</div>
-  </div>`;
-}
-
 function updateRow(i, entry) {
-  const { verdict, score, vtPts, abPts, mbPts, otxPts, tfPts, usPts, uhPts, haPts, fsPts, confidence, flags, vt, ab, mb, otx, ha, threatfox, urlhaus, urlscan, filescan, bgpview } = entry;
+  const { verdict, score, vtPts, abPts, mbPts, otxPts, tfPts, usPts, uhPts, haPts, fsPts, confidence, flags, vt, ab, mb, otx, ha, threatfox, urlhaus, urlscan, filescan } = entry;
   const t = entry.ioc.type;
   const isHash   = t.startsWith('hash_');
   const isIP     = t === 'ip' || t === 'ipv6';
-  const isNetCtx = t === 'asn' || t === 'cidr';
   const vtMax  = isIP ? 30 : isHash ? 25 : 50;
   const vEl  = document.getElementById(`v-${i}`);
   const vtEl = document.getElementById(`vt-${i}`);
@@ -192,9 +177,9 @@ function updateRow(i, entry) {
   const flEl = document.getElementById(`fl-${i}`);
   const row  = document.querySelector(`tr[data-row="${i}"]`);
   if (vEl)   vEl.innerHTML  = buildVerdictCell(verdict, score, confidence, true);
-  if (vtEl)  vtEl.innerHTML = isNetCtx ? '<span style="color:var(--muted);font-size:11px">-</span>' : buildSourceScoreCell('vt', vtPts, vt, true, vtMax);
-  if (abEl)  abEl.innerHTML = isHash ? buildSourceScoreCell('mb', mbPts, mb, true, 10) : isIP ? buildSourceScoreCell('ab', abPts, ab, true, 40) : isNetCtx ? buildBGPViewCell(bgpview, true) : buildSourceScoreCell('us', usPts, urlscan, true, 20);
-  if (otxEl) otxEl.innerHTML= buildSourceScoreCell('otx', otxPts, otx, true, isNetCtx ? 100 : 10);
+  if (vtEl)  vtEl.innerHTML = buildSourceScoreCell('vt', vtPts, vt, true, vtMax);
+  if (abEl)  abEl.innerHTML = isHash ? buildSourceScoreCell('mb', mbPts, mb, true, 10) : isIP ? buildSourceScoreCell('ab', abPts, ab, true, 40) : buildSourceScoreCell('us', usPts, urlscan, true, 20);
+  if (otxEl) otxEl.innerHTML= buildSourceScoreCell('otx', otxPts, otx, true, 10);
   if (haEl)  haEl.innerHTML = isHash ? buildSourceScoreCell('ha', haPts, ha, true, 20) : buildSourceScoreCell('ha', null, ha, true, 20);
   if (tfEl)  tfEl.innerHTML = t === 'url' ? buildSourceScoreCell('uh', uhPts, urlhaus, true, 20) : buildSourceScoreCell('tf', tfPts, threatfox, true, isHash?10:20);
   if (fsEl)  fsEl.innerHTML = isHash ? buildSourceScoreCell('fs', fsPts, filescan, true, 25) : '<span style="color:var(--muted);font-size:11px">-</span>';
@@ -444,7 +429,7 @@ function buildModalTitle(entry) {
 }
 
 function buildModalContent(entry) {
-  const { ioc, vt, ab, otx, urlscan, threatfox, urlhaus, mb, ha, shodan, filescan, bgpview,
+  const { ioc, vt, ab, otx, urlscan, threatfox, urlhaus, mb, ha, shodan, filescan,
           score, vtPts, abPts, mbPts, otxPts, tfPts, usPts, uhPts, haPts, fsPts,
           verdict, confidence, action, reasons } = entry;
   const iocType    = ioc.type;
@@ -452,9 +437,6 @@ function buildModalContent(entry) {
   const iocIsHash  = iocType.startsWith('hash_');
   const iocIsDom   = iocType === 'domain';
   const iocIsUrl   = iocType === 'url';
-  const iocIsASN   = iocType === 'asn';
-  const iocIsCIDR  = iocType === 'cidr';
-  const iocIsNetCtx = iocIsASN || iocIsCIDR;
   const vtMax      = iocIsIP ? 30 : iocIsHash ? 25 : 50;
 
   const vMap = { malicious: ['var(--red)','🔴 MALICIOUS'], suspicious: ['var(--yellow)','🟡 SUSPICIOUS'], benign: ['var(--accent)','🟢 BENIGN'], unknown: ['var(--muted)','⚪ UNKNOWN'] };
@@ -492,13 +474,7 @@ function buildModalContent(entry) {
   let sbdRows = '';
   let maxNote = '';
 
-  if (iocIsASN) {
-    sbdRows = buildSBDRow('OTX (ASN)', otxPts, 100, 'var(--otx)', otx ? (otx.error ? 'Error' : otx.skipped ? '-' : `${otx.pulseCount||0} pulses`) : '-');
-    maxNote = 'OTX(100) — sole scoring source for ASN types';
-  } else if (iocIsCIDR) {
-    sbdRows = `<tr><td colspan="5" style="color:var(--muted);font-size:11px;padding:8px 4px">No threat scoring — CIDR is a context lookup only</td></tr>`;
-    maxNote = 'Context lookup only';
-  } else {
+  {
     const vtSig = vt ? (vt.error ? 'Error' : vt.skipped ? '-' : `${vt.malicious||0}/${vt.total||0} engines`) : '-';
     sbdRows = buildSBDRow('VIRUSTOTAL', vtPts, vtMax, 'var(--vt)', vtSig);
     if (iocIsIP) {
@@ -537,16 +513,7 @@ function buildModalContent(entry) {
   </div>`);
 
   /* Primary intel - all sources relevant to this IOC type (Shodan only stays supplementary) */
-  if (iocIsASN) {
-    parts.push(`<div class="modal-intel-grid">
-      ${buildBGPViewBlock(bgpview, iocType, ioc.value)}
-      ${buildOTXBlock(otx)}
-    </div>`);
-  } else if (iocIsCIDR) {
-    parts.push(`<div class="modal-intel-grid">
-      ${buildBGPViewBlock(bgpview, iocType, ioc.value)}
-    </div>`);
-  } else if (iocIsIP) {
+  if (iocIsIP) {
     parts.push(buildIPHighlightsCard(entry));
     parts.push(`<div class="modal-intel-grid">
       ${buildVTBlock(vt, iocType)}
@@ -881,37 +848,6 @@ function buildFileScanContent(fs) {
   return lines.join('');
 }
 
-function buildBGPViewBlock(bv, iocType, iocValue) {
-  const title = iocType === 'asn' ? 'BGP / ASN INTEL' : 'BGP / PREFIX INTEL';
-  const lnk = bv?.link ? ` <a href="${escapeAttr(bv.link)}" target="_blank" class="modal-link">↗</a>` : '';
-  if (!bv || bv.skipped || bv.notFound)
-    return `<div class="intel-block"><div class="intel-block-title" style="color:var(--accent2)">${title}${lnk}</div><div class="intel-na" style="color:var(--accent)">No BGP data found</div></div>`;
-  if (bv.error)
-    return `<div class="intel-block"><div class="intel-block-title" style="color:var(--accent2)">${title}</div><div class="intel-na">Error: ${escapeHtml(bv.error)}</div></div>`;
-  const lines = [];
-  if (iocType === 'asn') {
-    if (bv.asn)    lines.push(kv('ASN', `AS${bv.asn}`));
-    if (bv.name)   lines.push(kv('Name', bv.name));
-    if (bv.org)    lines.push(kv('Org', bv.org));
-    if (bv.country)lines.push(kv('Country', bv.country));
-    if (bv.rir)    lines.push(kv('RIR', bv.rir));
-    if (bv.prefixCount != null) lines.push(kv('Prefixes', String(bv.prefixCount)));
-    if (bv.website)lines.push(kv('Website', bv.website));
-  } else {
-    if (bv.prefix) lines.push(kv('Prefix', bv.prefix));
-    if (bv.asn)    lines.push(kv('ASN', `AS${bv.asn}`));
-    if (bv.name)   lines.push(kv('Name', bv.name));
-    if (bv.org)    lines.push(kv('Org', bv.org));
-    if (bv.country)lines.push(kv('Country', bv.country));
-    if (bv.rir)    lines.push(kv('RIR', bv.rir));
-    if (bv.parentPrefix) lines.push(kv('Parent Prefix', bv.parentPrefix));
-  }
-  return `<div class="intel-block">
-    <div class="intel-block-title" style="color:var(--accent2)">${title}${lnk}</div>
-    <div class="modal-kv-grid">${lines.join('')}</div>
-  </div>`;
-}
-
 function buildMBContent(mb) {
   if (!mb || mb.skipped) return `<div class="intel-na">${escapeHtml(mb?.reason || 'Skipped')}</div>`;
   if (mb.error) return `<div class="intel-na">Error: ${escapeHtml(mb.error)}</div>`;
@@ -1147,12 +1083,7 @@ function openIPIntelModal(i) {
     <div class="iim-section-label">LOCATION</div>
     <table class="iim-table">
       ${row('Country', il?.country || null)}
-      ${row('Country Code', il?.country_code || null)}
       ${row('City', il?.city || null)}
-      ${row('Subdivision', il?.subdivision || null)}
-      ${row('Continent', il?.continent || null)}
-      ${row('Time Zone', il?.time_zone || null)}
-      ${row('Postal Code', il?.postal_code || null)}
     </table>
     <div class="iim-section-label">NETWORK</div>
     <table class="iim-table">
@@ -1179,7 +1110,6 @@ function openIPIntelModal(i) {
     <div class="iim-section-label">THREAT INTELLIGENCE</div>
     <table class="iim-table">
       ${row('AbuseIPDB Score', abScore != null ? abScore + '%' : null)}
-      ${row('AbuseIPDB Domain', ab?.domain || null)}
       ${row('VirusTotal', vtTotal != null ? vtMal + '/' + vtTotal + ' malicious' : null)}
       ${row('OTX Pulses', otxPulses ?? null)}
       ${row('ThreatFox Hits', tfHits ?? null)}

@@ -53,17 +53,6 @@ function parseIOCsWithMeta(raw) {
     if (!seen.has(v)) { seen.add(v); iocs.push({ value: v, type: 'url', label: 'URL' }); }
   }
 
-  /* 2.5. CIDRs — before IPv4 so the base address isn't double-parsed as a bare IP */
-  const cidrRe = /\b(?:(?:25[0-5]|2[0-4]\d|[01]?\d\d?)\.){3}(?:25[0-5]|2[0-4]\d|[01]?\d\d?)\/(?:3[0-2]|[12]?\d)\b/g;
-  for (const m of text.matchAll(cidrRe)) {
-    const v = m[0];
-    if (!seen.has(v)) {
-      seen.add(v);
-      seen.add(v.split('/')[0]);
-      iocs.push({ value: v, type: 'cidr', label: 'CIDR' });
-    }
-  }
-
   /* 3. IPv4 */
   for (const m of text.matchAll(new RegExp(IPV4_RE.source, 'g'))) {
     const v = m[0];
@@ -80,13 +69,6 @@ function parseIOCsWithMeta(raw) {
       seen.add(v);
       iocs.push({ value: v, type: 'ipv6', label: 'IPv6', isPrivate: isPrivateV6(v) });
     }
-  }
-
-  /* 4.5. ASNs */
-  const asnRe = /\bAS\d{1,10}\b/gi;
-  for (const m of text.matchAll(asnRe)) {
-    const v = m[0].toUpperCase();
-    if (!seen.has(v)) { seen.add(v); iocs.push({ value: v, type: 'asn', label: 'ASN' }); }
   }
 
   /* 5. Domains — after IPs so numeric-only dotted strings stay as IPs */
@@ -107,8 +89,6 @@ function parseIOCsWithMeta(raw) {
     domain: iocs.filter(i => i.type === 'domain').length,
     url:    iocs.filter(i => i.type === 'url').length,
     hash:   iocs.filter(i => i.type.startsWith('hash_')).length,
-    asn:    iocs.filter(i => i.type === 'asn').length,
-    cidr:   iocs.filter(i => i.type === 'cidr').length,
   };
 
   return { iocs, total: iocs.length, byType, private: iocs.filter(i => i.isPrivate).length };
@@ -123,7 +103,7 @@ function parseIOCsRealtime() {
   /* Update per-mode badge counts in the mode-tab blocks */
   const byMode = {
     all:     meta.total,
-    ip:      meta.byType.ip + meta.byType.ipv6 + meta.byType.asn + meta.byType.cidr,
+    ip:      meta.byType.ip + meta.byType.ipv6,
     hash:    meta.byType.hash,
     domain:  meta.byType.domain + meta.byType.url,
     ipintel: meta.byType.ip + meta.byType.ipv6,
@@ -156,8 +136,6 @@ function parseIOCsRealtime() {
     domain: filtered.filter(i => i.type === 'domain').length,
     url:    filtered.filter(i => i.type === 'url').length,
     hash:   filtered.filter(i => i.type.startsWith('hash_')).length,
-    asn:    filtered.filter(i => i.type === 'asn').length,
-    cidr:   filtered.filter(i => i.type === 'cidr').length,
   };
   const parts = [`<span>${filtered.length}</span> IOC${filtered.length > 1 ? 's' : ''}`];
   const labels = [];
@@ -166,8 +144,6 @@ function parseIOCsRealtime() {
   if (bt.domain) labels.push(`${bt.domain} Domain${bt.domain > 1 ? 's' : ''}`);
   if (bt.url)    labels.push(`${bt.url} URL${bt.url > 1 ? 's' : ''}`);
   if (bt.hash)   labels.push(`${bt.hash} Hash${bt.hash > 1 ? 'es' : ''}`);
-  if (bt.asn)    labels.push(`${bt.asn} ASN${bt.asn > 1 ? 's' : ''}`);
-  if (bt.cidr)   labels.push(`${bt.cidr} CIDR${bt.cidr > 1 ? 's' : ''}`);
   if (labels.length) parts.push(labels.join(' · '));
   const priv = filtered.filter(i => i.isPrivate).length;
   if (priv) parts.push(`<span style="color:var(--yellow)">${priv} private</span>`);
