@@ -75,7 +75,7 @@ function buildRow(entry, i) {
     <td id="v-${i}">${buildVerdictCell(verdict, score, confidence, done)}</td>
     <td id="vt-${i}">${isNetCtx ? '<span style="color:var(--muted);font-size:11px">-</span>' : buildSourceScoreCell('vt', vtPts, entry.vt, done, (ioc.type==='ip'||ioc.type==='ipv6')?30:isHash?25:50)}</td>
     <td id="ab-${i}">${isHash ? buildSourceScoreCell('mb', mbPts, entry.mb, done, 10) : (ioc.type==='ip'||ioc.type==='ipv6') ? buildSourceScoreCell('ab', abPts, entry.ab, done, 40) : isNetCtx ? buildBGPViewCell(entry.bgpview, done) : buildSourceScoreCell('us', usPts, entry.urlscan, done, 20)}</td>
-    <td id="otx-${i}">${buildSourceScoreCell('otx', otxPts, entry.otx, done, 10)}</td>
+    <td id="otx-${i}">${buildSourceScoreCell('otx', otxPts, entry.otx, done, isNetCtx ? 100 : 10)}</td>
     <td id="ha-${i}">${isHash ? buildSourceScoreCell('ha', haPts, entry.ha, done, 20) : buildSourceScoreCell('ha', null, entry.ha, done, 20)}</td>
     <td id="tf-${i}">${ioc.type==='url' ? buildSourceScoreCell('uh', uhPts, entry.urlhaus, done, 20) : buildSourceScoreCell('tf', tfPts, entry.threatfox, done, ioc.type.startsWith('hash_')?10:20)}</td>
     <td id="fs-${i}">${isHash ? buildSourceScoreCell('fs', fsPts, entry.filescan, done, 25) : '<span style="color:var(--muted);font-size:11px">-</span>'}</td>
@@ -194,7 +194,7 @@ function updateRow(i, entry) {
   if (vEl)   vEl.innerHTML  = buildVerdictCell(verdict, score, confidence, true);
   if (vtEl)  vtEl.innerHTML = isNetCtx ? '<span style="color:var(--muted);font-size:11px">-</span>' : buildSourceScoreCell('vt', vtPts, vt, true, vtMax);
   if (abEl)  abEl.innerHTML = isHash ? buildSourceScoreCell('mb', mbPts, mb, true, 10) : isIP ? buildSourceScoreCell('ab', abPts, ab, true, 40) : isNetCtx ? buildBGPViewCell(bgpview, true) : buildSourceScoreCell('us', usPts, urlscan, true, 20);
-  if (otxEl) otxEl.innerHTML= buildSourceScoreCell('otx', otxPts, otx, true, 10);
+  if (otxEl) otxEl.innerHTML= buildSourceScoreCell('otx', otxPts, otx, true, isNetCtx ? 100 : 10);
   if (haEl)  haEl.innerHTML = isHash ? buildSourceScoreCell('ha', haPts, ha, true, 20) : buildSourceScoreCell('ha', null, ha, true, 20);
   if (tfEl)  tfEl.innerHTML = t === 'url' ? buildSourceScoreCell('uh', uhPts, urlhaus, true, 20) : buildSourceScoreCell('tf', tfPts, threatfox, true, isHash?10:20);
   if (fsEl)  fsEl.innerHTML = isHash ? buildSourceScoreCell('fs', fsPts, filescan, true, 25) : '<span style="color:var(--muted);font-size:11px">-</span>';
