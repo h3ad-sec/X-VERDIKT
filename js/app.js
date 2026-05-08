@@ -5,7 +5,7 @@ const MODE_CONFIG = {
   all: {
     label: 'IOC',
     types: null,
-    placeholder: `Paste IOCs — one per line or comma/space separated\n\nExamples:\n  8.8.8.8\n  evil.example.com\n  https://malware.example.com/payload.exe\n  44d88612fea8a8f36de82e1278abb02f  (MD5)\n  1[.]2[.]3[.]4  (defanged)\n\nCtrl+Enter to analyze`,
+    placeholder: `Paste IOCs — one per line or comma/space separated\n\nExamples:\n  8.8.8.8\n  evil.example.com\n  https://malware.example.com/payload.exe\n  44d88612fea8a8f36de82e1278abb02f  (MD5)\n  1[.]2[.]3[.]4  (defanged)\n  AS15169  (ASN)\n  8.8.8.0/24  (CIDR)\n\nCtrl+Enter to analyze`,
   },
   ip: {
     label: 'IP / Network',
