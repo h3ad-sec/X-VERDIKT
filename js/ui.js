@@ -929,6 +929,7 @@ function buildIPIntelRow(entry, i) {
   const countryHtml = done ? (il?.country      ? escapeHtml(il.country)                                              : nf) : ld;
   const orgHtml     = done ? (il?.organization ? `<span style="font-size:11px">${escapeHtml(truncate(il.organization, 30))}</span>` : nf) : ld;
   const domainHtml  = done ? (il?.domain       ? `<span style="font-size:11px">${escapeHtml(il.domain)}</span>`       : nf) : ld;
+  const flagsHtml   = done ? buildIPIntelFlags(il) : ld;
 
   const abScore = ab && !ab.skipped && !ab.error ? ab.score : null;
   const abHtml = done
@@ -951,7 +952,7 @@ function buildIPIntelRow(entry, i) {
     ? (tfHits != null ? `<span style="font-size:12px;color:${tfHits > 0 ? 'var(--red)' : 'var(--muted)'}">${tfHits}</span>` : nf)
     : ld;
 
-  const copyHtml   = done ? `<button class="btn-ii-copy" onclick="copyIPIntelRow(${i})" title="Copy row">⎘</button>` : '';
+  const copyHtml   = done ? `<button class="btn-ii-copy" onclick="copyIPIntelRow(${i})" title="Copy as key-value">⎘</button>` : '';
   const detailHtml = done ? `<button class="btn-detail" onclick="openIPIntelModal(${i})">DETAIL</button>` : ld;
 
   return `<tr data-row="${i}">
@@ -961,13 +962,14 @@ function buildIPIntelRow(entry, i) {
         <button class="ioc-copy-btn" onclick="copyToClipboard('${escapeAttr(ioc.value)}')" title="Copy IP">⎘</button>
       </div>
     </td>
-    <td id="ii-country-${i}" class="col-icountry">${countryHtml}</td>
-    <td id="ii-org-${i}"     class="col-iorg">${orgHtml}</td>
-    <td id="ii-domain-${i}"  class="col-idomain">${domainHtml}</td>
     <td id="ii-ab-${i}"      class="col-iab">${abHtml}</td>
     <td id="ii-vt-${i}"      class="col-ivt">${vtHtml}</td>
     <td id="ii-otx-${i}"     class="col-iotx">${otxHtml}</td>
     <td id="ii-tf-${i}"      class="col-itf">${tfHtml}</td>
+    <td id="ii-country-${i}" class="col-icountry">${countryHtml}</td>
+    <td id="ii-org-${i}"     class="col-iorg">${orgHtml}</td>
+    <td id="ii-domain-${i}"  class="col-idomain">${domainHtml}</td>
+    <td id="ii-fl-${i}"      class="col-iflags">${flagsHtml}</td>
     <td id="ii-copy-${i}"    class="col-icopy">${copyHtml}</td>
     <td id="ii-det-${i}"     class="col-idetail">${detailHtml}</td>
   </tr>`;
@@ -1002,6 +1004,7 @@ function updateIPIntelRow(i, entry) {
   const countryEl = g('ii-country');
   const orgEl     = g('ii-org');
   const domainEl  = g('ii-domain');
+  const flEl      = g('ii-fl');
   const abEl      = g('ii-ab');
   const vtEl      = g('ii-vt');
   const otxEl     = g('ii-otx');
@@ -1012,6 +1015,7 @@ function updateIPIntelRow(i, entry) {
   if (countryEl) countryEl.innerHTML = il?.country      ? escapeHtml(il.country) : nf;
   if (orgEl)     orgEl.innerHTML     = il?.organization ? `<span style="font-size:11px">${escapeHtml(truncate(il.organization, 30))}</span>` : nf;
   if (domainEl)  domainEl.innerHTML  = il?.domain       ? `<span style="font-size:11px">${escapeHtml(il.domain)}</span>` : nf;
+  if (flEl)      flEl.innerHTML      = buildIPIntelFlags(il);
 
   const abScore = ab && !ab.skipped && !ab.error ? ab.score : null;
   if (abEl) abEl.innerHTML = abScore != null
@@ -1034,7 +1038,7 @@ function updateIPIntelRow(i, entry) {
     ? `<span style="font-size:12px;color:${tfHits > 0 ? 'var(--red)' : 'var(--muted)'}">${tfHits}</span>`
     : nf;
 
-  if (copyEl) copyEl.innerHTML = `<button class="btn-ii-copy" onclick="copyIPIntelRow(${i})" title="Copy row">⎘</button>`;
+  if (copyEl) copyEl.innerHTML = `<button class="btn-ii-copy" onclick="copyIPIntelRow(${i})" title="Copy as key-value">⎘</button>`;
   if (detEl)  detEl.innerHTML  = `<button class="btn-detail" onclick="openIPIntelModal(${i})">DETAIL</button>`;
 }
 
@@ -1061,37 +1065,6 @@ function openIPIntelModal(i) {
   const flagsHtml = buildIPIntelFlags(il);
 
   const html = `<div class="iim-wrap">
-    <div class="iim-section-label">LOCATION</div>
-    <table class="iim-table">
-      ${row('IP Address', il?.ip || ioc.value)}
-      ${row('Country', il?.country || null)}
-      ${row('City', il?.city || null)}
-      ${row('Subdivision', il?.subdivision || null)}
-      ${row('Continent', il?.continent || null)}
-      ${row('Time Zone', il?.time_zone || null)}
-    </table>
-    <div class="iim-section-label">NETWORK</div>
-    <table class="iim-table">
-      ${row('Network', il?.network || null)}
-      ${row('ASN', il?.asn || null)}
-      ${row('ASN Name', il?.asn_name || null)}
-      ${row('ISP', il?.isp || null)}
-      ${row('Organization', il?.organization || null)}
-      ${row('Domain', il?.domain || null)}
-    </table>
-    <div class="iim-section-label">PRIVACY FLAGS</div>
-    <div style="margin-bottom:10px">${flagsHtml}</div>
-    <table class="iim-table">
-      ${row('Is Anonymous', il?.is_anonymous ?? null)}
-      ${row('Is VPN', il?.is_vpn ?? null)}
-      ${row('Is Proxy', il?.is_proxy ?? null)}
-      ${row('Is Tor', il?.is_tor ?? null)}
-      ${row('Is Hosting', il?.is_hosting ?? null)}
-      ${row('Is Relay', il?.is_relay ?? null)}
-      ${row('Is iCloud Relay', il?.is_icloud_relay ?? null)}
-      ${row('Is Crawler', il?.is_crawler ?? null)}
-      ${row('Is Bogon', il?.is_bogon ?? null)}
-    </table>
     <div class="iim-section-label">THREAT INTELLIGENCE</div>
     <table class="iim-table">
       ${row('AbuseIPDB Score', abScore != null ? abScore + '%' : null)}
@@ -1105,25 +1078,60 @@ function openIPIntelModal(i) {
       ${otx?.link       ? `<a href="${escapeAttr(otx.link)}"       target="_blank" rel="noopener" class="modal-ext-link">OTX ↗</a>`         : ''}
       ${threatfox?.link ? `<a href="${escapeAttr(threatfox.link)}" target="_blank" rel="noopener" class="modal-ext-link">ThreatFox ↗</a>`   : ''}
     </div>
+    <div class="iim-section-label">LOCATION <span style="font-size:9px;color:var(--muted);font-weight:400;letter-spacing:.5px">· IPLOCATE</span></div>
+    <table class="iim-table">
+      ${row('IP Address', il?.ip || ioc.value)}
+      ${row('Country', il?.country || null)}
+      ${row('City', il?.city || null)}
+      ${row('Subdivision', il?.subdivision || null)}
+      ${row('Continent', il?.continent || null)}
+      ${row('Time Zone', il?.time_zone || null)}
+    </table>
+    <div class="iim-section-label">NETWORK <span style="font-size:9px;color:var(--muted);font-weight:400;letter-spacing:.5px">· IPLOCATE</span></div>
+    <table class="iim-table">
+      ${row('Network', il?.network || null)}
+      ${row('ASN', il?.asn || null)}
+      ${row('ASN Name', il?.asn_name || null)}
+      ${row('ISP', il?.isp || null)}
+      ${row('Organization', il?.organization || null)}
+      ${row('Domain', il?.domain || null)}
+    </table>
+    <div class="iim-section-label">PRIVACY FLAGS <span style="font-size:9px;color:var(--muted);font-weight:400;letter-spacing:.5px">· IPLOCATE</span></div>
+    <div style="margin-bottom:10px">${flagsHtml}</div>
+    <table class="iim-table">
+      ${row('Is Anonymous', il?.is_anonymous ?? null)}
+      ${row('Is VPN', il?.is_vpn ?? null)}
+      ${row('Is Proxy', il?.is_proxy ?? null)}
+      ${row('Is Tor', il?.is_tor ?? null)}
+      ${row('Is Hosting', il?.is_hosting ?? null)}
+      ${row('Is Relay', il?.is_relay ?? null)}
+      ${row('Is iCloud Relay', il?.is_icloud_relay ?? null)}
+      ${row('Is Crawler', il?.is_crawler ?? null)}
+      ${row('Is Bogon', il?.is_bogon ?? null)}
+    </table>
   </div>`;
 
   document.getElementById('modal-title').innerHTML = `IP INTEL <span style="color:var(--accent2)">${escapeHtml(ioc.value)}</span>`;
-  document.getElementById('modal-header-actions').innerHTML = '';
+  document.getElementById('modal-header-actions').innerHTML =
+    `<button class="btn btn-export" onclick="iiClipboard(ipIntelEntryToKV(ipIntelResults[${i}]),'Copied to clipboard')" title="Copy all fields as key-value">
+       <svg width="11" height="11" viewBox="0 0 12 12" fill="none"><rect x="1" y="3" width="8" height="8" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M3 1h8v8" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+       COPY
+     </button>`;
   document.getElementById('modal-body').innerHTML = html;
   document.getElementById('modal-overlay').classList.add('open');
 }
 
 /* ── IP Intel copy / export ──────────────────────────────────────────────── */
-const II_TSV_HEADERS = [
-  'IP Address', 'Country', 'City', 'Subdivision', 'Continent', 'Time Zone',
+const II_EXPORT_HEADERS = [
+  'IP Address',
+  'AbuseIPDB Score (%)', 'VirusTotal', 'OTX Pulses', 'ThreatFox Hits',
+  'Country', 'City',
   'Network', 'ASN', 'ASN Name', 'ISP', 'Organization', 'Domain',
   'Is Anonymous', 'Is VPN', 'Is Proxy', 'Is Tor', 'Is Hosting',
   'Is Relay', 'Is iCloud Relay', 'Is Crawler', 'Is Bogon',
-  'AbuseIPDB Score (%)', 'VirusTotal Malicious', 'VirusTotal Total Engines',
-  'OTX Pulses', 'ThreatFox Hits',
-].join('\t');
+];
 
-function ipIntelEntryToTSV(entry) {
+function _iiBase(entry) {
   const { ioc, iplocate, ab, vt, otx, threatfox } = entry;
   const il      = (iplocate && !iplocate.skipped && !iplocate.error && !iplocate.notFound) ? iplocate : null;
   const abScore = ab && !ab.skipped && !ab.error ? ab.score : null;
@@ -1131,18 +1139,52 @@ function ipIntelEntryToTSV(entry) {
   const vtTotal = vt && !vt.skipped && !vt.error ? vt.total : null;
   const otxP    = otx && !otx.skipped && !otx.error ? otx.pulseCount : null;
   const tfH     = threatfox && !threatfox.skipped && !threatfox.error && !threatfox.notFound ? (threatfox.iocCount || 0) : null;
+  const vtStr   = vtTotal != null ? `${vtMal}/${vtTotal}` : null;
+  return { ioc, il, abScore, vtStr, otxP, tfH };
+}
+
+function ipIntelEntryToKV(entry) {
+  const { ioc, il, abScore, vtStr, otxP, tfH } = _iiBase(entry);
+  const v = (val) => val != null ? String(val) : 'not found';
+  return [
+    `IP Address: ${ioc.value}`,
+    `AbuseIPDB Score: ${abScore != null ? abScore + '%' : 'not found'}`,
+    `VirusTotal: ${vtStr ?? 'not found'}`,
+    `OTX Pulses: ${otxP != null ? otxP : 'not found'}`,
+    `ThreatFox Hits: ${tfH != null ? tfH : 'not found'}`,
+    `Country: ${v(il?.country)}`,
+    `City: ${v(il?.city)}`,
+    `Network: ${v(il?.network)}`,
+    `ASN: ${v(il?.asn)}`,
+    `ASN Name: ${v(il?.asn_name)}`,
+    `ISP: ${v(il?.isp)}`,
+    `Organization: ${v(il?.organization)}`,
+    `Domain: ${v(il?.domain)}`,
+    `Is Anonymous: ${il == null ? 'not found' : String(il.is_anonymous)}`,
+    `Is VPN: ${il == null ? 'not found' : String(il.is_vpn)}`,
+    `Is Proxy: ${il == null ? 'not found' : String(il.is_proxy)}`,
+    `Is Tor: ${il == null ? 'not found' : String(il.is_tor)}`,
+    `Is Hosting: ${il == null ? 'not found' : String(il.is_hosting)}`,
+    `Is Relay: ${il == null ? 'not found' : String(il.is_relay)}`,
+    `Is iCloud Relay: ${il == null ? 'not found' : String(il.is_icloud_relay)}`,
+    `Is Crawler: ${il == null ? 'not found' : String(il.is_crawler)}`,
+    `Is Bogon: ${il == null ? 'not found' : String(il.is_bogon)}`,
+  ].join('\n');
+}
+
+function ipIntelEntryToTSV(entry) {
+  const { ioc, il, abScore, vtStr, otxP, tfH } = _iiBase(entry);
   const b = v => v == null ? '' : String(v);
   return [
     ioc.value,
-    b(il?.country), b(il?.city), b(il?.subdivision), b(il?.continent), b(il?.time_zone),
+    abScore != null ? String(abScore) : '',
+    vtStr   ?? '',
+    otxP    != null ? String(otxP) : '',
+    tfH     != null ? String(tfH)  : '',
+    b(il?.country), b(il?.city),
     b(il?.network), b(il?.asn), b(il?.asn_name), b(il?.isp), b(il?.organization), b(il?.domain),
     b(il?.is_anonymous), b(il?.is_vpn), b(il?.is_proxy), b(il?.is_tor), b(il?.is_hosting),
     b(il?.is_relay), b(il?.is_icloud_relay), b(il?.is_crawler), b(il?.is_bogon),
-    abScore != null ? String(abScore) : '',
-    vtMal   != null ? String(vtMal)   : '',
-    vtTotal != null ? String(vtTotal) : '',
-    otxP    != null ? String(otxP)    : '',
-    tfH     != null ? String(tfH)     : '',
   ].join('\t');
 }
 
@@ -1163,37 +1205,42 @@ function iiClipboard(text, msg) {
 function copyIPIntelRow(i) {
   const entry = ipIntelResults[i];
   if (!entry || !entry.done) { showToast('Row not ready', 'warning'); return; }
-  iiClipboard(II_TSV_HEADERS + '\n' + ipIntelEntryToTSV(entry), 'Row copied to clipboard');
+  iiClipboard(ipIntelEntryToKV(entry), 'Copied to clipboard');
 }
 
 function copyIPIntelTable() {
   if (!ipIntelResults.length) { showToast('No results to copy', 'warning'); return; }
-  const rows = ipIntelResults.map(ipIntelEntryToTSV).join('\n');
-  iiClipboard(II_TSV_HEADERS + '\n' + rows,
+  const header = II_EXPORT_HEADERS.join('\t');
+  const rows   = ipIntelResults.map(ipIntelEntryToTSV).join('\n');
+  iiClipboard(header + '\n' + rows,
     `${ipIntelResults.length} row${ipIntelResults.length !== 1 ? 's' : ''} copied to clipboard`);
 }
 
 function exportIPIntelExcel() {
   if (!ipIntelResults.length) { showToast('No results to export', 'warning'); return; }
   if (typeof XLSX === 'undefined') { showToast('Excel library not ready — reload the page', 'error'); return; }
-  const headers = II_TSV_HEADERS.split('\t');
   const rows = ipIntelResults.map(entry => {
-    const { ioc, iplocate, ab, vt, otx, threatfox } = entry;
-    const il      = (iplocate && !iplocate.skipped && !iplocate.error && !iplocate.notFound) ? iplocate : null;
-    const abScore = ab && !ab.skipped && !ab.error ? ab.score : null;
-    const vtMal   = vt && !vt.skipped && !vt.error ? vt.malicious : null;
-    const vtTotal = vt && !vt.skipped && !vt.error ? vt.total : null;
-    const otxP    = otx && !otx.skipped && !otx.error ? otx.pulseCount : null;
-    const tfH     = threatfox && !threatfox.skipped && !threatfox.error && !threatfox.notFound ? (threatfox.iocCount || 0) : null;
+    const { ioc, il, abScore, vtStr, otxP, tfH } = _iiBase(entry);
     return [
       ioc.value,
-      il?.country ?? null, il?.city ?? null, il?.subdivision ?? null, il?.continent ?? null, il?.time_zone ?? null,
+      abScore != null ? abScore : null,
+      vtStr ?? null,
+      otxP   != null ? otxP   : null,
+      tfH    != null ? tfH    : null,
+      il?.country ?? null, il?.city ?? null,
       il?.network ?? null, il?.asn ?? null, il?.asn_name ?? null, il?.isp ?? null, il?.organization ?? null, il?.domain ?? null,
       il?.is_anonymous ?? null, il?.is_vpn ?? null, il?.is_proxy ?? null, il?.is_tor ?? null, il?.is_hosting ?? null,
       il?.is_relay ?? null, il?.is_icloud_relay ?? null, il?.is_crawler ?? null, il?.is_bogon ?? null,
-      abScore, vtMal, vtTotal, otxP, tfH,
     ];
   });
+  const headers = [
+    'IP Address',
+    'AbuseIPDB Score (%)', 'VirusTotal', 'OTX Pulses', 'ThreatFox Hits',
+    'Country', 'City',
+    'Network', 'ASN', 'ASN Name', 'ISP', 'Organization', 'Domain',
+    'Is Anonymous', 'Is VPN', 'Is Proxy', 'Is Tor', 'Is Hosting',
+    'Is Relay', 'Is iCloud Relay', 'Is Crawler', 'Is Bogon',
+  ];
   const ws = XLSX.utils.aoa_to_sheet([headers, ...rows]);
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, 'IP Intel');

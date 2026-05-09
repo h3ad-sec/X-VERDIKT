@@ -240,7 +240,8 @@ body.light .btn-primary{color:#fff;}
 .type-hash  {color:#f59e0b;border-color:rgba(245,158,11,.25);background:rgba(245,158,11,.04);}
 /* ── IP Intel table ─────────────────────────────────────────────────────── */
 .ipintel-table-wrap{overflow-x:auto;}
-.ipintel-table{min-width:820px;}
+.ipintel-table{min-width:960px;}
+.col-iflags{min-width:120px;}
 .ipintel-table th{white-space:normal;text-align:center;vertical-align:bottom;line-height:1.3;padding:10px 12px;font-size:10px;}
 .ipintel-table th.col-ioc{text-align:left;}
 .col-icountry {min-width:80px;}
