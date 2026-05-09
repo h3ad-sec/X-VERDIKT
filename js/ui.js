@@ -961,15 +961,15 @@ function buildIPIntelRow(entry, i) {
         <button class="ioc-copy-btn" onclick="copyToClipboard('${escapeAttr(ioc.value)}')" title="Copy IP">⎘</button>
       </div>
     </td>
-    <td id="ii-country-${i}">${countryHtml}</td>
-    <td id="ii-org-${i}">${orgHtml}</td>
-    <td id="ii-domain-${i}">${domainHtml}</td>
-    <td id="ii-ab-${i}">${abHtml}</td>
-    <td id="ii-vt-${i}">${vtHtml}</td>
-    <td id="ii-otx-${i}">${otxHtml}</td>
-    <td id="ii-tf-${i}">${tfHtml}</td>
-    <td id="ii-copy-${i}">${copyHtml}</td>
-    <td id="ii-det-${i}">${detailHtml}</td>
+    <td id="ii-country-${i}" class="col-icountry">${countryHtml}</td>
+    <td id="ii-org-${i}"     class="col-iorg">${orgHtml}</td>
+    <td id="ii-domain-${i}"  class="col-idomain">${domainHtml}</td>
+    <td id="ii-ab-${i}"      class="col-iab">${abHtml}</td>
+    <td id="ii-vt-${i}"      class="col-ivt">${vtHtml}</td>
+    <td id="ii-otx-${i}"     class="col-iotx">${otxHtml}</td>
+    <td id="ii-tf-${i}"      class="col-itf">${tfHtml}</td>
+    <td id="ii-copy-${i}"    class="col-icopy">${copyHtml}</td>
+    <td id="ii-det-${i}"     class="col-idetail">${detailHtml}</td>
   </tr>`;
 }
 
@@ -1100,9 +1100,10 @@ function openIPIntelModal(i) {
       ${row('ThreatFox Hits', tfHits ?? null)}
     </table>
     <div class="iim-links">
-      ${vt?.link  ? `<a href="${escapeAttr(vt.link)}"  target="_blank" rel="noopener" class="modal-ext-link">VirusTotal ↗</a>`  : ''}
-      ${otx?.link ? `<a href="${escapeAttr(otx.link)}" target="_blank" rel="noopener" class="modal-ext-link">OTX ↗</a>`         : ''}
-      ${ab?.link  ? `<a href="${escapeAttr(ab.link)}"  target="_blank" rel="noopener" class="modal-ext-link">AbuseIPDB ↗</a>`   : ''}
+      ${vt?.link        ? `<a href="${escapeAttr(vt.link)}"        target="_blank" rel="noopener" class="modal-ext-link">VirusTotal ↗</a>`  : ''}
+      ${ab?.link        ? `<a href="${escapeAttr(ab.link)}"        target="_blank" rel="noopener" class="modal-ext-link">AbuseIPDB ↗</a>`   : ''}
+      ${otx?.link       ? `<a href="${escapeAttr(otx.link)}"       target="_blank" rel="noopener" class="modal-ext-link">OTX ↗</a>`         : ''}
+      ${threatfox?.link ? `<a href="${escapeAttr(threatfox.link)}" target="_blank" rel="noopener" class="modal-ext-link">ThreatFox ↗</a>`   : ''}
     </div>
   </div>`;
 
@@ -1145,23 +1146,36 @@ function ipIntelEntryToTSV(entry) {
   ].join('\t');
 }
 
+function iiClipboard(text, msg) {
+  const fallback = () => {
+    const ta = document.createElement('textarea');
+    ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0';
+    document.body.appendChild(ta); ta.focus(); ta.select();
+    try { document.execCommand('copy'); showToast(msg, 'success'); }
+    catch(_) { showToast('Copy failed — use Ctrl+C', 'error'); }
+    document.body.removeChild(ta);
+  };
+  if (navigator.clipboard) {
+    navigator.clipboard.writeText(text).then(() => showToast(msg, 'success')).catch(fallback);
+  } else { fallback(); }
+}
+
 function copyIPIntelRow(i) {
   const entry = ipIntelResults[i];
-  if (!entry) return;
-  navigator.clipboard.writeText(II_TSV_HEADERS + '\n' + ipIntelEntryToTSV(entry))
-    .then(() => showToast('Row copied to clipboard', 'success'));
+  if (!entry || !entry.done) { showToast('Row not ready', 'warning'); return; }
+  iiClipboard(II_TSV_HEADERS + '\n' + ipIntelEntryToTSV(entry), 'Row copied to clipboard');
 }
 
 function copyIPIntelTable() {
   if (!ipIntelResults.length) { showToast('No results to copy', 'warning'); return; }
   const rows = ipIntelResults.map(ipIntelEntryToTSV).join('\n');
-  navigator.clipboard.writeText(II_TSV_HEADERS + '\n' + rows)
-    .then(() => showToast(`${ipIntelResults.length} row${ipIntelResults.length !== 1 ? 's' : ''} copied to clipboard`, 'success'));
+  iiClipboard(II_TSV_HEADERS + '\n' + rows,
+    `${ipIntelResults.length} row${ipIntelResults.length !== 1 ? 's' : ''} copied to clipboard`);
 }
 
 function exportIPIntelExcel() {
   if (!ipIntelResults.length) { showToast('No results to export', 'warning'); return; }
-  if (typeof XLSX === 'undefined') { showToast('Excel library not ready', 'error'); return; }
+  if (typeof XLSX === 'undefined') { showToast('Excel library not ready — reload the page', 'error'); return; }
   const headers = II_TSV_HEADERS.split('\t');
   const rows = ipIntelResults.map(entry => {
     const { ioc, iplocate, ab, vt, otx, threatfox } = entry;
