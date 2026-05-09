@@ -1251,10 +1251,15 @@ function copyIPIntelRow(i) {
 
 function copyIPIntelTable() {
   if (!ipIntelResults.length) { showToast('No results to copy', 'warning'); return; }
-  const header = II_EXPORT_HEADERS.join('\t');
-  const rows   = ipIntelResults.map(ipIntelEntryToTSV).join('\n');
-  iiClipboard(header + '\n' + rows,
-    `${ipIntelResults.length} row${ipIntelResults.length !== 1 ? 's' : ''} copied to clipboard`);
+  const n = ipIntelResults.length;
+  let text;
+  if (n <= 5) {
+    text = ipIntelResults.map(ipIntelEntryToKV).join('\n\n' + '─'.repeat(40) + '\n\n');
+  } else {
+    const header = II_EXPORT_HEADERS.join('\t');
+    text = header + '\n' + ipIntelResults.map(ipIntelEntryToTSV).join('\n');
+  }
+  iiClipboard(text, `${n} IP${n !== 1 ? 's' : ''} copied to clipboard`);
 }
 
 function exportIPIntelExcel() {
