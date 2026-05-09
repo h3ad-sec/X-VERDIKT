@@ -1017,7 +1017,6 @@ function updateIPIntelRow(i, entry) {
   if (orgEl)     orgEl.innerHTML     = il?.organization ? escapeHtml(truncate(il.organization, 30)) : nf;
   const _abDomain = (ab && !ab.skipped && !ab.error && ab.domain) ? ab.domain : null;
   const domainVal = il?.domain || _abDomain || null;
-  console.log('[domain-debug]', i, { il_domain: il?.domain, ab_skipped: ab?.skipped, ab_error: ab?.error, ab_domain: ab?.domain, _abDomain, domainVal, domainEl: !!domainEl });
   if (domainEl)  domainEl.innerHTML  = domainVal ? escapeHtml(domainVal) : nf;
   if (flEl)      flEl.innerHTML      = buildIPIntelFlags(il);
 

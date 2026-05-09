@@ -544,6 +544,7 @@ function parseIPLocateResponse(data) {
   const asnObj  = (data.asn && typeof data.asn === 'object')     ? data.asn     : {};
   const company = (data.company && typeof data.company === 'object') ? data.company : {};
   const p       = (data.privacy && typeof data.privacy === 'object') ? data.privacy : {};
+  const nn = v => (v && v !== 'null' && v !== 'none') ? v : null;
   return {
     source:          'iplocate',
     ip:              data.ip           || null,
@@ -561,7 +562,7 @@ function parseIPLocateResponse(data) {
     asn_name:        asnObj.name       || null,
     isp:             asnObj.name       || company.name || null,
     organization:    company.name      || asnObj.name  || null,
-    domain:          asnObj.domain     || company.domain || null,
+    domain:          nn(asnObj.domain) || nn(company.domain) || null,
     is_abuser:       p.is_abuser       ?? false,
     is_anonymous:    p.is_anonymous    ?? false,
     is_vpn:          p.is_vpn          ?? false,
