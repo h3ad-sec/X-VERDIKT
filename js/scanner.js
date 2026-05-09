@@ -370,7 +370,7 @@ async function startIPIntelScan() {
   VtBucket.paid = window._serverVTPaid === true;
   VtBucket.tokens = 4; VtBucket.lastRefill = Date.now();
 
-  isScanning = true; stopRequested = false; ipIntelResults = []; totalScanned = 0;
+  isScanning = true; stopRequested = false; ipIntelResults = []; window.ipIntelResults = ipIntelResults; totalScanned = 0;
 
   for (const ioc of iocs) {
     ipIntelResults.push({ ioc, iplocate: null, ab: null, vt: null, otx: null, threatfox: null, done: false });
