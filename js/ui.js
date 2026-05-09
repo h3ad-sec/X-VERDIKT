@@ -1051,11 +1051,30 @@ function openIPIntelModal(i) {
   const { ioc, iplocate, ab, vt, otx, threatfox } = entry;
   const il = (iplocate && !iplocate.skipped && !iplocate.error && !iplocate.notFound) ? iplocate : null;
 
-  const abScore   = ab && !ab.skipped && !ab.error ? ab.score : null;
-  const vtMal     = vt && !vt.skipped && !vt.error ? vt.malicious : null;
-  const vtTotal   = vt && !vt.skipped && !vt.error ? vt.total : null;
+  const abOk      = ab && !ab.skipped && !ab.error;
+  const abScore   = abOk ? ab.score : null;
+  const abReports = abOk ? (ab.totalReports ?? null) : null;
+  const abIsp     = abOk ? (ab.isp || null) : null;
+  const vtOk      = vt && !vt.skipped && !vt.error;
+  const vtMal     = vtOk ? vt.malicious  : null;
+  const vtSus     = vtOk ? vt.suspicious : null;
+  const vtUndet   = vtOk ? vt.undetected : null;
+  const vtTotal   = vtOk ? vt.total      : null;
   const otxPulses = otx && !otx.skipped && !otx.error ? otx.pulseCount : null;
   const tfHits    = threatfox && !threatfox.skipped && !threatfox.error && !threatfox.notFound ? (threatfox.iocCount || 0) : null;
+
+  const abDisplay = abScore != null
+    ? `${abScore}% confidence${abReports != null ? ` — ${abReports.toLocaleString()} reports` : ''}${abIsp ? ` | ${abIsp}` : ''}`
+    : null;
+  const vtDisplay = (() => {
+    if (vtTotal == null) return null;
+    const parts = [];
+    if (vtMal   > 0) parts.push(`${vtMal} malicious`);
+    if (vtSus   > 0) parts.push(`${vtSus} suspicious`);
+    if (parts.length) return `${parts.join(' · ')} out of ${vtTotal} engines`;
+    if (vtUndet > 0) return `${vtUndet} undetected out of ${vtTotal} engines`;
+    return `clean out of ${vtTotal} engines`;
+  })();
 
   const row = (label, val) => {
     const isBool = typeof val === 'boolean';
@@ -1070,10 +1089,10 @@ function openIPIntelModal(i) {
   const html = `<div class="iim-wrap">
     <div class="iim-section-label">THREAT INTELLIGENCE</div>
     <table class="iim-table">
-      ${row('AbuseIPDB Score', abScore != null ? abScore + '%' : null)}
-      ${row('VirusTotal Detections', vtTotal != null ? vtMal + ' malicious / ' + vtTotal + ' engines' : null)}
-      ${row('OTX Pulses', otxPulses ?? null)}
-      ${row('ThreatFox Hits', tfHits ?? null)}
+      ${row('AbuseIPDB Score', abDisplay)}
+      ${row('VirusTotal Detections', vtDisplay)}
+      ${row('OTX Pulses', otxPulses != null ? `${otxPulses} pulse${otxPulses !== 1 ? 's' : ''}` : null)}
+      ${row('ThreatFox Hits', tfHits != null ? `${tfHits} IOC match${tfHits !== 1 ? 'es' : ''}` : null)}
     </table>
     <div class="iim-links">
       ${vt?.link        ? `<a href="${escapeAttr(vt.link)}"        target="_blank" rel="noopener" class="modal-ext-link">VirusTotal ↗</a>`  : ''}
@@ -1141,25 +1160,32 @@ function _iiBase(entry) {
   const abReports  = abOk ? (ab.totalReports ?? null) : null;
   const abIsp      = abOk ? (ab.isp || null) : null;
   const vtOk       = vt && !vt.skipped && !vt.error;
-  const vtMal      = vtOk ? vt.malicious : null;
-  const vtSus      = vtOk ? vt.suspicious : null;
-  const vtTotal    = vtOk ? vt.total : null;
+  const vtMal      = vtOk ? vt.malicious   : null;
+  const vtSus      = vtOk ? vt.suspicious  : null;
+  const vtUndet    = vtOk ? vt.undetected  : null;
+  const vtTotal    = vtOk ? vt.total       : null;
   const otxP       = otx && !otx.skipped && !otx.error ? otx.pulseCount : null;
   const tfH        = threatfox && !threatfox.skipped && !threatfox.error && !threatfox.notFound ? (threatfox.iocCount || 0) : null;
   const vtStr      = vtTotal != null ? `${vtMal}/${vtTotal}` : null;
   const domainVal  = il?.domain || (abOk && ab.domain ? ab.domain : null) || null;
-  return { ioc, il, abScore, abReports, abIsp, vtMal, vtSus, vtTotal, vtStr, otxP, tfH, domainVal };
+  return { ioc, il, abScore, abReports, abIsp, vtMal, vtSus, vtUndet, vtTotal, vtStr, otxP, tfH, domainVal };
 }
 
 function ipIntelEntryToKV(entry) {
-  const { ioc, il, abScore, abReports, abIsp, vtMal, vtSus, vtTotal, vtStr, otxP, tfH, domainVal } = _iiBase(entry);
+  const { ioc, il, abScore, abReports, abIsp, vtMal, vtSus, vtUndet, vtTotal, vtStr, otxP, tfH, domainVal } = _iiBase(entry);
   const v = (val) => val != null ? String(val) : 'not found';
   const abLine = abScore != null
     ? `${abScore}% confidence${abReports != null ? ` — ${abReports.toLocaleString()} reports` : ''}${abIsp ? ` | ${abIsp}` : ''}`
     : 'not found';
-  const vtLine = vtTotal != null
-    ? `${vtMal} malicious · ${vtSus} suspicious · ${vtTotal - vtMal - vtSus} clean out of ${vtTotal} engines`
-    : 'not found';
+  const vtLine = (() => {
+    if (vtTotal == null) return 'not found';
+    const parts = [];
+    if (vtMal   > 0) parts.push(`${vtMal} malicious`);
+    if (vtSus   > 0) parts.push(`${vtSus} suspicious`);
+    if (parts.length) return `${parts.join(' · ')} out of ${vtTotal} engines`;
+    if (vtUndet > 0) return `${vtUndet} undetected out of ${vtTotal} engines`;
+    return `clean out of ${vtTotal} engines`;
+  })();
   const otxLine = otxP != null ? `${otxP} pulse${otxP !== 1 ? 's' : ''}` : 'not found';
   const tfLine  = tfH  != null ? `${tfH} IOC match${tfH  !== 1 ? 'es' : ''}` : 'not found';
   return [
