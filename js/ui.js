@@ -1135,27 +1135,39 @@ const II_EXPORT_HEADERS = [
 
 function _iiBase(entry) {
   const { ioc, iplocate, ab, vt, otx, threatfox } = entry;
-  const il       = (iplocate && !iplocate.skipped && !iplocate.error && !iplocate.notFound) ? iplocate : null;
-  const abOk     = ab && !ab.skipped && !ab.error;
-  const abScore  = abOk ? ab.score : null;
-  const vtMal    = vt && !vt.skipped && !vt.error ? vt.malicious : null;
-  const vtTotal  = vt && !vt.skipped && !vt.error ? vt.total : null;
-  const otxP     = otx && !otx.skipped && !otx.error ? otx.pulseCount : null;
-  const tfH      = threatfox && !threatfox.skipped && !threatfox.error && !threatfox.notFound ? (threatfox.iocCount || 0) : null;
-  const vtStr    = vtTotal != null ? `${vtMal}/${vtTotal}` : null;
-  const domainVal = il?.domain || (abOk && ab.domain ? ab.domain : null) || null;
-  return { ioc, il, abScore, vtStr, otxP, tfH, domainVal };
+  const il         = (iplocate && !iplocate.skipped && !iplocate.error && !iplocate.notFound) ? iplocate : null;
+  const abOk       = ab && !ab.skipped && !ab.error;
+  const abScore    = abOk ? ab.score : null;
+  const abReports  = abOk ? (ab.totalReports ?? null) : null;
+  const abIsp      = abOk ? (ab.isp || null) : null;
+  const vtOk       = vt && !vt.skipped && !vt.error;
+  const vtMal      = vtOk ? vt.malicious : null;
+  const vtSus      = vtOk ? vt.suspicious : null;
+  const vtTotal    = vtOk ? vt.total : null;
+  const otxP       = otx && !otx.skipped && !otx.error ? otx.pulseCount : null;
+  const tfH        = threatfox && !threatfox.skipped && !threatfox.error && !threatfox.notFound ? (threatfox.iocCount || 0) : null;
+  const vtStr      = vtTotal != null ? `${vtMal}/${vtTotal}` : null;
+  const domainVal  = il?.domain || (abOk && ab.domain ? ab.domain : null) || null;
+  return { ioc, il, abScore, abReports, abIsp, vtMal, vtSus, vtTotal, vtStr, otxP, tfH, domainVal };
 }
 
 function ipIntelEntryToKV(entry) {
-  const { ioc, il, abScore, vtStr, otxP, tfH, domainVal } = _iiBase(entry);
+  const { ioc, il, abScore, abReports, abIsp, vtMal, vtSus, vtTotal, vtStr, otxP, tfH, domainVal } = _iiBase(entry);
   const v = (val) => val != null ? String(val) : 'not found';
+  const abLine = abScore != null
+    ? `${abScore}% confidence${abReports != null ? ` — ${abReports.toLocaleString()} reports` : ''}${abIsp ? ` | ${abIsp}` : ''}`
+    : 'not found';
+  const vtLine = vtTotal != null
+    ? `${vtMal} malicious · ${vtSus} suspicious · ${vtTotal - vtMal - vtSus} clean out of ${vtTotal} engines`
+    : 'not found';
+  const otxLine = otxP != null ? `${otxP} pulse${otxP !== 1 ? 's' : ''}` : 'not found';
+  const tfLine  = tfH  != null ? `${tfH} IOC match${tfH  !== 1 ? 'es' : ''}` : 'not found';
   return [
     `IP Address: ${ioc.value}`,
-    `AbuseIPDB Score: ${abScore != null ? abScore + '%' : 'not found'}`,
-    `VirusTotal: ${vtStr ?? 'not found'}`,
-    `OTX Pulses: ${otxP != null ? otxP : 'not found'}`,
-    `ThreatFox Hits: ${tfH != null ? tfH : 'not found'}`,
+    `AbuseIPDB Score: ${abLine}`,
+    `VirusTotal: ${vtLine}`,
+    `OTX Pulses: ${otxLine}`,
+    `ThreatFox Hits: ${tfLine}`,
     `Country: ${v(il?.country)}`,
     `City: ${v(il?.city)}`,
     `Network: ${v(il?.network)}`,
