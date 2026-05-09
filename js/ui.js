@@ -926,31 +926,31 @@ function buildIPIntelRow(entry, i) {
   const nf = '<span class="ipi-nf">not found</span>';
   const ld = '<span class="src-loading">…</span>';
 
-  const countryHtml = done ? (il?.country      ? escapeHtml(il.country)                                              : nf) : ld;
-  const orgHtml     = done ? (il?.organization ? `<span style="font-size:11px">${escapeHtml(truncate(il.organization, 30))}</span>` : nf) : ld;
+  const countryHtml = done ? (il?.country      ? escapeHtml(il.country) : nf) : ld;
+  const orgHtml     = done ? (il?.organization ? escapeHtml(truncate(il.organization, 30)) : nf) : ld;
   const domainVal   = il?.domain || (ab && !ab.skipped && !ab.error ? ab.domain : null) || null;
-  const domainHtml  = done ? (domainVal ? `<span style="font-size:11px">${escapeHtml(domainVal)}</span>` : nf) : ld;
+  const domainHtml  = done ? (domainVal ? escapeHtml(domainVal) : nf) : ld;
   const flagsHtml   = done ? buildIPIntelFlags(il) : ld;
 
   const abScore = ab && !ab.skipped && !ab.error ? ab.score : null;
   const abHtml = done
-    ? (abScore != null ? `<span style="font-size:12px;font-weight:600;color:${abScore >= 75 ? 'var(--red)' : abScore >= 25 ? 'var(--yellow)' : 'var(--accent)'}">${abScore}%</span>` : nf)
+    ? (abScore != null ? `<span style="font-weight:600;color:${abScore >= 75 ? 'var(--red)' : abScore >= 25 ? 'var(--yellow)' : 'var(--accent)'}">${abScore}%</span>` : nf)
     : ld;
 
   const vtMal   = vt && !vt.skipped && !vt.error && vt.total > 0 ? vt.malicious : null;
   const vtTotal = vt && !vt.skipped && !vt.error && vt.total > 0 ? vt.total     : null;
   const vtHtml = done
-    ? (vtTotal != null ? `<span style="font-size:12px;color:${vtMal > 0 ? 'var(--red)' : 'var(--accent)'}">${vtMal}/${vtTotal}</span>` : nf)
+    ? (vtTotal != null ? `<span style="color:${vtMal > 0 ? 'var(--red)' : 'var(--accent)'}">${vtMal}/${vtTotal}</span>` : nf)
     : ld;
 
   const otxPulses = otx && !otx.skipped && !otx.error ? otx.pulseCount : null;
   const otxHtml = done
-    ? (otxPulses != null ? `<span style="font-size:12px;color:${otxPulses > 0 ? 'var(--yellow)' : 'var(--muted)'}">${otxPulses}</span>` : nf)
+    ? (otxPulses != null ? `<span style="color:${otxPulses > 0 ? 'var(--yellow)' : 'var(--muted)'}">${otxPulses}</span>` : nf)
     : ld;
 
   const tfHits = threatfox && !threatfox.skipped && !threatfox.error && !threatfox.notFound ? (threatfox.iocCount || 0) : null;
   const tfHtml = done
-    ? (tfHits != null ? `<span style="font-size:12px;color:${tfHits > 0 ? 'var(--red)' : 'var(--muted)'}">${tfHits}</span>` : nf)
+    ? (tfHits != null ? `<span style="color:${tfHits > 0 ? 'var(--red)' : 'var(--muted)'}">${tfHits}</span>` : nf)
     : ld;
 
   const copyHtml   = done ? `<button class="btn-ii-copy" onclick="copyIPIntelRow(${i})" title="Copy as key-value">⎘</button>` : '';
@@ -977,7 +977,7 @@ function buildIPIntelRow(entry, i) {
 }
 
 function buildIPIntelFlags(il) {
-  if (!il) return '<span style="color:var(--muted);font-size:11px">-</span>';
+  if (!il) return '<span style="color:var(--muted)">-</span>';
   const defs = [
     ['is_vpn',         'VPN',     '#facc15'],
     ['is_tor',         'TOR',     'var(--red)'],
@@ -990,7 +990,7 @@ function buildIPIntelFlags(il) {
     ['is_bogon',       'BOGON',   'var(--red)'],
   ];
   const active = defs.filter(([k]) => il[k] === true);
-  if (!active.length) return '<span style="color:var(--accent);font-size:11px">CLEAN</span>';
+  if (!active.length) return '<span style="color:var(--accent)">CLEAN</span>';
   return active.map(([, label, color]) =>
     `<span class="ipi-flag" style="color:${color};border-color:${color}30">${label}</span>`
   ).join('');
@@ -1014,30 +1014,30 @@ function updateIPIntelRow(i, entry) {
   const detEl     = g('ii-det');
 
   if (countryEl) countryEl.innerHTML = il?.country      ? escapeHtml(il.country) : nf;
-  if (orgEl)     orgEl.innerHTML     = il?.organization ? `<span style="font-size:11px">${escapeHtml(truncate(il.organization, 30))}</span>` : nf;
+  if (orgEl)     orgEl.innerHTML     = il?.organization ? escapeHtml(truncate(il.organization, 30)) : nf;
   const domainVal = il?.domain || (ab && !ab.skipped && !ab.error ? ab.domain : null) || null;
-  if (domainEl)  domainEl.innerHTML  = domainVal ? `<span style="font-size:11px">${escapeHtml(domainVal)}</span>` : nf;
+  if (domainEl)  domainEl.innerHTML  = domainVal ? escapeHtml(domainVal) : nf;
   if (flEl)      flEl.innerHTML      = buildIPIntelFlags(il);
 
   const abScore = ab && !ab.skipped && !ab.error ? ab.score : null;
   if (abEl) abEl.innerHTML = abScore != null
-    ? `<span style="font-size:12px;font-weight:600;color:${abScore >= 75 ? 'var(--red)' : abScore >= 25 ? 'var(--yellow)' : 'var(--accent)'}">${abScore}%</span>`
+    ? `<span style="font-weight:600;color:${abScore >= 75 ? 'var(--red)' : abScore >= 25 ? 'var(--yellow)' : 'var(--accent)'}">${abScore}%</span>`
     : nf;
 
   const vtMal   = vt && !vt.skipped && !vt.error && vt.total > 0 ? vt.malicious : null;
   const vtTotal = vt && !vt.skipped && !vt.error && vt.total > 0 ? vt.total     : null;
   if (vtEl) vtEl.innerHTML = vtTotal != null
-    ? `<span style="font-size:12px;color:${vtMal > 0 ? 'var(--red)' : 'var(--accent)'}">${vtMal}/${vtTotal}</span>`
+    ? `<span style="color:${vtMal > 0 ? 'var(--red)' : 'var(--accent)'}">${vtMal}/${vtTotal}</span>`
     : nf;
 
   const otxPulses = otx && !otx.skipped && !otx.error ? otx.pulseCount : null;
   if (otxEl) otxEl.innerHTML = otxPulses != null
-    ? `<span style="font-size:12px;color:${otxPulses > 0 ? 'var(--yellow)' : 'var(--muted)'}">${otxPulses}</span>`
+    ? `<span style="color:${otxPulses > 0 ? 'var(--yellow)' : 'var(--muted)'}">${otxPulses}</span>`
     : nf;
 
   const tfHits = threatfox && !threatfox.skipped && !threatfox.error && !threatfox.notFound ? (threatfox.iocCount || 0) : null;
   if (tfEl) tfEl.innerHTML = tfHits != null
-    ? `<span style="font-size:12px;color:${tfHits > 0 ? 'var(--red)' : 'var(--muted)'}">${tfHits}</span>`
+    ? `<span style="color:${tfHits > 0 ? 'var(--red)' : 'var(--muted)'}">${tfHits}</span>`
     : nf;
 
   if (copyEl) copyEl.innerHTML = `<button class="btn-ii-copy" onclick="copyIPIntelRow(${i})" title="Copy as key-value">⎘</button>`;
