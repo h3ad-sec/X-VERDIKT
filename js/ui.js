@@ -928,7 +928,7 @@ function buildIPIntelRow(entry, i) {
 
   const countryHtml = done ? (il?.country      ? escapeHtml(il.country) : nf) : ld;
   const orgHtml     = done ? (il?.organization ? escapeHtml(truncate(il.organization, 30)) : nf) : ld;
-  const domainVal   = il?.domain || (ab && !ab.skipped && !ab.error ? ab.domain : null) || null;
+  const domainVal   = il?.domain || (ab && !ab.skipped && !ab.error ? (ab.domain || ab.hostnames?.[0] || null) : null) || null;
   const domainHtml  = done ? (domainVal ? escapeHtml(domainVal) : nf) : ld;
   const flagsHtml   = done ? buildIPIntelFlags(il) : ld;
 
@@ -979,15 +979,14 @@ function buildIPIntelRow(entry, i) {
 function buildIPIntelFlags(il) {
   if (!il) return '<span style="color:var(--muted)">-</span>';
   const defs = [
-    ['is_vpn',         'VPN',     '#facc15'],
+    ['is_abuser',      'ABUSER',  'var(--red)'],
     ['is_tor',         'TOR',     'var(--red)'],
-    ['is_proxy',       'PROXY',   '#facc15'],
-    ['is_hosting',     'HOSTING', 'var(--accent2)'],
-    ['is_relay',       'RELAY',   'var(--accent2)'],
-    ['is_icloud_relay','iCLOUD',  'var(--accent2)'],
-    ['is_anonymous',   'ANON',    '#facc15'],
-    ['is_crawler',     'CRAWLER', 'var(--muted)'],
     ['is_bogon',       'BOGON',   'var(--red)'],
+    ['is_vpn',         'VPN',     '#facc15'],
+    ['is_proxy',       'PROXY',   '#facc15'],
+    ['is_anonymous',   'ANON',    '#facc15'],
+    ['is_hosting',     'HOSTING', 'var(--accent2)'],
+    ['is_icloud_relay','iCLOUD',  'var(--accent2)'],
   ];
   const active = defs.filter(([k]) => il[k] === true);
   if (!active.length) return '<span style="color:var(--accent)">CLEAN</span>';
@@ -1015,7 +1014,7 @@ function updateIPIntelRow(i, entry) {
 
   if (countryEl) countryEl.innerHTML = il?.country      ? escapeHtml(il.country) : nf;
   if (orgEl)     orgEl.innerHTML     = il?.organization ? escapeHtml(truncate(il.organization, 30)) : nf;
-  const domainVal = il?.domain || (ab && !ab.skipped && !ab.error ? ab.domain : null) || null;
+  const domainVal = il?.domain || (ab && !ab.skipped && !ab.error ? (ab.domain || ab.hostnames?.[0] || null) : null) || null;
   if (domainEl)  domainEl.innerHTML  = domainVal ? escapeHtml(domainVal) : nf;
   if (flEl)      flEl.innerHTML      = buildIPIntelFlags(il);
 
@@ -1096,19 +1095,18 @@ function openIPIntelModal(i) {
       ${row('ASN Name', il?.asn_name || null)}
       ${row('ISP', il?.isp || null)}
       ${row('Organization', il?.organization || null)}
-      ${row('Domain', il?.domain || (ab && !ab.skipped && !ab.error ? ab.domain : null) || null)}
+      ${row('Domain', il?.domain || (ab && !ab.skipped && !ab.error ? (ab.domain || ab.hostnames?.[0] || null) : null) || null)}
     </table>
     <div class="iim-section-label">PRIVACY FLAGS <span style="font-size:9px;color:var(--muted);font-weight:400;letter-spacing:.5px">· IPLOCATE</span></div>
     <div style="margin-bottom:10px">${flagsHtml}</div>
     <table class="iim-table">
+      ${row('Is Abuser', il?.is_abuser ?? null)}
       ${row('Is Anonymous', il?.is_anonymous ?? null)}
       ${row('Is VPN', il?.is_vpn ?? null)}
       ${row('Is Proxy', il?.is_proxy ?? null)}
       ${row('Is Tor', il?.is_tor ?? null)}
       ${row('Is Hosting', il?.is_hosting ?? null)}
-      ${row('Is Relay', il?.is_relay ?? null)}
       ${row('Is iCloud Relay', il?.is_icloud_relay ?? null)}
-      ${row('Is Crawler', il?.is_crawler ?? null)}
       ${row('Is Bogon', il?.is_bogon ?? null)}
     </table>
   </div>`;
@@ -1129,8 +1127,8 @@ const II_EXPORT_HEADERS = [
   'AbuseIPDB Score (%)', 'VirusTotal', 'OTX Pulses', 'ThreatFox Hits',
   'Country', 'City',
   'Network', 'ASN', 'ASN Name', 'ISP', 'Organization', 'Domain',
-  'Is Anonymous', 'Is VPN', 'Is Proxy', 'Is Tor', 'Is Hosting',
-  'Is Relay', 'Is iCloud Relay', 'Is Crawler', 'Is Bogon',
+  'Is Abuser', 'Is Anonymous', 'Is VPN', 'Is Proxy', 'Is Tor', 'Is Hosting',
+  'Is iCloud Relay', 'Is Bogon',
 ];
 
 function _iiBase(entry) {
@@ -1164,14 +1162,13 @@ function ipIntelEntryToKV(entry) {
     `ISP: ${v(il?.isp)}`,
     `Organization: ${v(il?.organization)}`,
     `Domain: ${v(domainVal)}`,
+    `Is Abuser: ${il == null ? 'not found' : String(il.is_abuser)}`,
     `Is Anonymous: ${il == null ? 'not found' : String(il.is_anonymous)}`,
     `Is VPN: ${il == null ? 'not found' : String(il.is_vpn)}`,
     `Is Proxy: ${il == null ? 'not found' : String(il.is_proxy)}`,
     `Is Tor: ${il == null ? 'not found' : String(il.is_tor)}`,
     `Is Hosting: ${il == null ? 'not found' : String(il.is_hosting)}`,
-    `Is Relay: ${il == null ? 'not found' : String(il.is_relay)}`,
     `Is iCloud Relay: ${il == null ? 'not found' : String(il.is_icloud_relay)}`,
-    `Is Crawler: ${il == null ? 'not found' : String(il.is_crawler)}`,
     `Is Bogon: ${il == null ? 'not found' : String(il.is_bogon)}`,
   ].join('\n');
 }
@@ -1187,8 +1184,8 @@ function ipIntelEntryToTSV(entry) {
     tfH     != null ? String(tfH)  : '',
     b(il?.country), b(il?.city),
     b(il?.network), b(il?.asn), b(il?.asn_name), b(il?.isp), b(il?.organization), b(domainVal),
-    b(il?.is_anonymous), b(il?.is_vpn), b(il?.is_proxy), b(il?.is_tor), b(il?.is_hosting),
-    b(il?.is_relay), b(il?.is_icloud_relay), b(il?.is_crawler), b(il?.is_bogon),
+    b(il?.is_abuser), b(il?.is_anonymous), b(il?.is_vpn), b(il?.is_proxy), b(il?.is_tor), b(il?.is_hosting),
+    b(il?.is_icloud_relay), b(il?.is_bogon),
   ].join('\t');
 }
 
@@ -1233,8 +1230,8 @@ function exportIPIntelExcel() {
       tfH    != null ? tfH    : null,
       il?.country ?? null, il?.city ?? null,
       il?.network ?? null, il?.asn ?? null, il?.asn_name ?? null, il?.isp ?? null, il?.organization ?? null, domainVal ?? null,
-      il?.is_anonymous ?? null, il?.is_vpn ?? null, il?.is_proxy ?? null, il?.is_tor ?? null, il?.is_hosting ?? null,
-      il?.is_relay ?? null, il?.is_icloud_relay ?? null, il?.is_crawler ?? null, il?.is_bogon ?? null,
+      il?.is_abuser ?? null, il?.is_anonymous ?? null, il?.is_vpn ?? null, il?.is_proxy ?? null, il?.is_tor ?? null, il?.is_hosting ?? null,
+      il?.is_icloud_relay ?? null, il?.is_bogon ?? null,
     ];
   });
   const headers = [
@@ -1242,8 +1239,8 @@ function exportIPIntelExcel() {
     'AbuseIPDB Score (%)', 'VirusTotal', 'OTX Pulses', 'ThreatFox Hits',
     'Country', 'City',
     'Network', 'ASN', 'ASN Name', 'ISP', 'Organization', 'Domain',
-    'Is Anonymous', 'Is VPN', 'Is Proxy', 'Is Tor', 'Is Hosting',
-    'Is Relay', 'Is iCloud Relay', 'Is Crawler', 'Is Bogon',
+    'Is Abuser', 'Is Anonymous', 'Is VPN', 'Is Proxy', 'Is Tor', 'Is Hosting',
+    'Is iCloud Relay', 'Is Bogon',
   ];
   const ws = XLSX.utils.aoa_to_sheet([headers, ...rows]);
   const wb = XLSX.utils.book_new();

@@ -562,14 +562,13 @@ function parseIPLocateResponse(data) {
     isp:             asnObj.name       || company.name || null,
     organization:    company.name      || asnObj.name  || null,
     domain:          asnObj.domain     || company.domain || null,
+    is_abuser:       p.is_abuser       ?? false,
     is_anonymous:    p.is_anonymous    ?? false,
     is_vpn:          p.is_vpn          ?? false,
     is_proxy:        p.is_proxy        ?? false,
     is_tor:          p.is_tor          ?? false,
     is_hosting:      p.is_hosting      ?? false,
-    is_relay:        p.is_relay        ?? false,
     is_icloud_relay: p.is_icloud_relay ?? false,
-    is_crawler:      p.is_crawler      ?? false,
     is_bogon:        p.is_bogon        ?? false,
   };
 }
