@@ -1072,7 +1072,7 @@ function openIPIntelModal(i) {
     if (vtMal   > 0) parts.push(`${vtMal} malicious`);
     if (vtSus   > 0) parts.push(`${vtSus} suspicious`);
     if (parts.length) return `${parts.join(' · ')} out of ${vtTotal} engines`;
-    if (vtUndet > 0) return `${vtUndet} undetected out of ${vtTotal} engines`;
+    if (vtUndet === vtTotal) return 'undetected';
     return `clean out of ${vtTotal} engines`;
   })();
 
@@ -1183,7 +1183,7 @@ function ipIntelEntryToKV(entry) {
     if (vtMal   > 0) parts.push(`${vtMal} malicious`);
     if (vtSus   > 0) parts.push(`${vtSus} suspicious`);
     if (parts.length) return `${parts.join(' · ')} out of ${vtTotal} engines`;
-    if (vtUndet > 0) return `${vtUndet} undetected out of ${vtTotal} engines`;
+    if (vtUndet === vtTotal) return 'undetected';
     return `clean out of ${vtTotal} engines`;
   })();
   const otxLine = otxP != null ? `${otxP} pulse${otxP !== 1 ? 's' : ''}` : 'not found';
