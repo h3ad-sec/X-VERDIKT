@@ -1141,7 +1141,7 @@ function _iiBase(entry) {
   const otxP     = otx && !otx.skipped && !otx.error ? otx.pulseCount : null;
   const tfH      = threatfox && !threatfox.skipped && !threatfox.error && !threatfox.notFound ? (threatfox.iocCount || 0) : null;
   const vtStr    = vtTotal != null ? `${vtMal}/${vtTotal}` : null;
-  const domainVal = il?.domain || (abOk ? ab.domain : null) || null;
+  const domainVal = il?.domain || (abOk ? (ab.domain || ab.hostnames?.[0] || null) : null) || null;
   return { ioc, il, abScore, vtStr, otxP, tfH, domainVal };
 }
 
