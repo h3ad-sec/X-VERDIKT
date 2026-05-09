@@ -928,7 +928,8 @@ function buildIPIntelRow(entry, i) {
 
   const countryHtml = done ? (il?.country      ? escapeHtml(il.country)                                              : nf) : ld;
   const orgHtml     = done ? (il?.organization ? `<span style="font-size:11px">${escapeHtml(truncate(il.organization, 30))}</span>` : nf) : ld;
-  const domainHtml  = done ? (il?.domain       ? `<span style="font-size:11px">${escapeHtml(il.domain)}</span>`       : nf) : ld;
+  const domainVal   = il?.domain || (ab && !ab.skipped && !ab.error ? ab.domain : null) || null;
+  const domainHtml  = done ? (domainVal ? `<span style="font-size:11px">${escapeHtml(domainVal)}</span>` : nf) : ld;
   const flagsHtml   = done ? buildIPIntelFlags(il) : ld;
 
   const abScore = ab && !ab.skipped && !ab.error ? ab.score : null;
@@ -1014,7 +1015,8 @@ function updateIPIntelRow(i, entry) {
 
   if (countryEl) countryEl.innerHTML = il?.country      ? escapeHtml(il.country) : nf;
   if (orgEl)     orgEl.innerHTML     = il?.organization ? `<span style="font-size:11px">${escapeHtml(truncate(il.organization, 30))}</span>` : nf;
-  if (domainEl)  domainEl.innerHTML  = il?.domain       ? `<span style="font-size:11px">${escapeHtml(il.domain)}</span>` : nf;
+  const domainVal = il?.domain || (ab && !ab.skipped && !ab.error ? ab.domain : null) || null;
+  if (domainEl)  domainEl.innerHTML  = domainVal ? `<span style="font-size:11px">${escapeHtml(domainVal)}</span>` : nf;
   if (flEl)      flEl.innerHTML      = buildIPIntelFlags(il);
 
   const abScore = ab && !ab.skipped && !ab.error ? ab.score : null;
@@ -1094,7 +1096,7 @@ function openIPIntelModal(i) {
       ${row('ASN Name', il?.asn_name || null)}
       ${row('ISP', il?.isp || null)}
       ${row('Organization', il?.organization || null)}
-      ${row('Domain', il?.domain || null)}
+      ${row('Domain', il?.domain || (ab && !ab.skipped && !ab.error ? ab.domain : null) || null)}
     </table>
     <div class="iim-section-label">PRIVACY FLAGS <span style="font-size:9px;color:var(--muted);font-weight:400;letter-spacing:.5px">· IPLOCATE</span></div>
     <div style="margin-bottom:10px">${flagsHtml}</div>
@@ -1133,18 +1135,20 @@ const II_EXPORT_HEADERS = [
 
 function _iiBase(entry) {
   const { ioc, iplocate, ab, vt, otx, threatfox } = entry;
-  const il      = (iplocate && !iplocate.skipped && !iplocate.error && !iplocate.notFound) ? iplocate : null;
-  const abScore = ab && !ab.skipped && !ab.error ? ab.score : null;
-  const vtMal   = vt && !vt.skipped && !vt.error ? vt.malicious : null;
-  const vtTotal = vt && !vt.skipped && !vt.error ? vt.total : null;
-  const otxP    = otx && !otx.skipped && !otx.error ? otx.pulseCount : null;
-  const tfH     = threatfox && !threatfox.skipped && !threatfox.error && !threatfox.notFound ? (threatfox.iocCount || 0) : null;
-  const vtStr   = vtTotal != null ? `${vtMal}/${vtTotal}` : null;
-  return { ioc, il, abScore, vtStr, otxP, tfH };
+  const il       = (iplocate && !iplocate.skipped && !iplocate.error && !iplocate.notFound) ? iplocate : null;
+  const abOk     = ab && !ab.skipped && !ab.error;
+  const abScore  = abOk ? ab.score : null;
+  const vtMal    = vt && !vt.skipped && !vt.error ? vt.malicious : null;
+  const vtTotal  = vt && !vt.skipped && !vt.error ? vt.total : null;
+  const otxP     = otx && !otx.skipped && !otx.error ? otx.pulseCount : null;
+  const tfH      = threatfox && !threatfox.skipped && !threatfox.error && !threatfox.notFound ? (threatfox.iocCount || 0) : null;
+  const vtStr    = vtTotal != null ? `${vtMal}/${vtTotal}` : null;
+  const domainVal = il?.domain || (abOk ? ab.domain : null) || null;
+  return { ioc, il, abScore, vtStr, otxP, tfH, domainVal };
 }
 
 function ipIntelEntryToKV(entry) {
-  const { ioc, il, abScore, vtStr, otxP, tfH } = _iiBase(entry);
+  const { ioc, il, abScore, vtStr, otxP, tfH, domainVal } = _iiBase(entry);
   const v = (val) => val != null ? String(val) : 'not found';
   return [
     `IP Address: ${ioc.value}`,
@@ -1159,7 +1163,7 @@ function ipIntelEntryToKV(entry) {
     `ASN Name: ${v(il?.asn_name)}`,
     `ISP: ${v(il?.isp)}`,
     `Organization: ${v(il?.organization)}`,
-    `Domain: ${v(il?.domain)}`,
+    `Domain: ${v(domainVal)}`,
     `Is Anonymous: ${il == null ? 'not found' : String(il.is_anonymous)}`,
     `Is VPN: ${il == null ? 'not found' : String(il.is_vpn)}`,
     `Is Proxy: ${il == null ? 'not found' : String(il.is_proxy)}`,
@@ -1173,7 +1177,7 @@ function ipIntelEntryToKV(entry) {
 }
 
 function ipIntelEntryToTSV(entry) {
-  const { ioc, il, abScore, vtStr, otxP, tfH } = _iiBase(entry);
+  const { ioc, il, abScore, vtStr, otxP, tfH, domainVal } = _iiBase(entry);
   const b = v => v == null ? '' : String(v);
   return [
     ioc.value,
@@ -1182,7 +1186,7 @@ function ipIntelEntryToTSV(entry) {
     otxP    != null ? String(otxP) : '',
     tfH     != null ? String(tfH)  : '',
     b(il?.country), b(il?.city),
-    b(il?.network), b(il?.asn), b(il?.asn_name), b(il?.isp), b(il?.organization), b(il?.domain),
+    b(il?.network), b(il?.asn), b(il?.asn_name), b(il?.isp), b(il?.organization), b(domainVal),
     b(il?.is_anonymous), b(il?.is_vpn), b(il?.is_proxy), b(il?.is_tor), b(il?.is_hosting),
     b(il?.is_relay), b(il?.is_icloud_relay), b(il?.is_crawler), b(il?.is_bogon),
   ].join('\t');
@@ -1220,7 +1224,7 @@ function exportIPIntelExcel() {
   if (!ipIntelResults.length) { showToast('No results to export', 'warning'); return; }
   if (typeof XLSX === 'undefined') { showToast('Excel library not ready — reload the page', 'error'); return; }
   const rows = ipIntelResults.map(entry => {
-    const { ioc, il, abScore, vtStr, otxP, tfH } = _iiBase(entry);
+    const { ioc, il, abScore, vtStr, otxP, tfH, domainVal } = _iiBase(entry);
     return [
       ioc.value,
       abScore != null ? abScore : null,
@@ -1228,7 +1232,7 @@ function exportIPIntelExcel() {
       otxP   != null ? otxP   : null,
       tfH    != null ? tfH    : null,
       il?.country ?? null, il?.city ?? null,
-      il?.network ?? null, il?.asn ?? null, il?.asn_name ?? null, il?.isp ?? null, il?.organization ?? null, il?.domain ?? null,
+      il?.network ?? null, il?.asn ?? null, il?.asn_name ?? null, il?.isp ?? null, il?.organization ?? null, domainVal ?? null,
       il?.is_anonymous ?? null, il?.is_vpn ?? null, il?.is_proxy ?? null, il?.is_tor ?? null, il?.is_hosting ?? null,
       il?.is_relay ?? null, il?.is_icloud_relay ?? null, il?.is_crawler ?? null, il?.is_bogon ?? null,
     ];

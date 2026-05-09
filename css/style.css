@@ -244,6 +244,8 @@ body.light .btn-primary{color:#fff;}
 .col-iflags{min-width:120px;}
 .ipintel-table th{white-space:normal;text-align:center;vertical-align:bottom;line-height:1.3;padding:10px 12px;font-size:10px;}
 .ipintel-table th.col-ioc{text-align:left;}
+.ipintel-table td{padding:9px 12px;vertical-align:middle;font-family:var(--mono);font-size:11px;color:var(--text);}
+.ipintel-table td.td-ioc{font-size:var(--fs-sm);}
 .col-icountry {min-width:80px;}
 .col-iorg     {min-width:130px;}
 .col-idomain  {min-width:100px;}
