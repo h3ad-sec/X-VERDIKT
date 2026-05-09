@@ -928,7 +928,7 @@ function buildIPIntelRow(entry, i) {
 
   const countryHtml = done ? (il?.country      ? escapeHtml(il.country) : nf) : ld;
   const orgHtml     = done ? (il?.organization ? escapeHtml(truncate(il.organization, 30)) : nf) : ld;
-  const domainVal   = il?.domain || (ab && !ab.skipped && !ab.error ? (ab.domain || ab.hostnames?.[0] || null) : null) || null;
+  const domainVal   = il?.domain || (ab && !ab.skipped && !ab.error ? (ab.domain || null) : null) || null;
   const domainHtml  = done ? (domainVal ? escapeHtml(domainVal) : nf) : ld;
   const flagsHtml   = done ? buildIPIntelFlags(il) : ld;
 
@@ -1014,7 +1014,7 @@ function updateIPIntelRow(i, entry) {
 
   if (countryEl) countryEl.innerHTML = il?.country      ? escapeHtml(il.country) : nf;
   if (orgEl)     orgEl.innerHTML     = il?.organization ? escapeHtml(truncate(il.organization, 30)) : nf;
-  const domainVal = il?.domain || (ab && !ab.skipped && !ab.error ? (ab.domain || ab.hostnames?.[0] || null) : null) || null;
+  const domainVal = il?.domain || (ab && !ab.skipped && !ab.error ? (ab.domain || null) : null) || null;
   if (domainEl)  domainEl.innerHTML  = domainVal ? escapeHtml(domainVal) : nf;
   if (flEl)      flEl.innerHTML      = buildIPIntelFlags(il);
 
@@ -1095,7 +1095,7 @@ function openIPIntelModal(i) {
       ${row('ASN Name', il?.asn_name || null)}
       ${row('ISP', il?.isp || null)}
       ${row('Organization', il?.organization || null)}
-      ${row('Domain', il?.domain || (ab && !ab.skipped && !ab.error ? (ab.domain || ab.hostnames?.[0] || null) : null) || null)}
+      ${row('Domain', il?.domain || (ab && !ab.skipped && !ab.error ? (ab.domain || null) : null) || null)}
     </table>
     <div class="iim-section-label">PRIVACY FLAGS <span style="font-size:9px;color:var(--muted);font-weight:400;letter-spacing:.5px">· IPLOCATE</span></div>
     <div style="margin-bottom:10px">${flagsHtml}</div>
@@ -1141,7 +1141,7 @@ function _iiBase(entry) {
   const otxP     = otx && !otx.skipped && !otx.error ? otx.pulseCount : null;
   const tfH      = threatfox && !threatfox.skipped && !threatfox.error && !threatfox.notFound ? (threatfox.iocCount || 0) : null;
   const vtStr    = vtTotal != null ? `${vtMal}/${vtTotal}` : null;
-  const domainVal = il?.domain || (abOk ? (ab.domain || ab.hostnames?.[0] || null) : null) || null;
+  const domainVal = il?.domain || (abOk ? (ab.domain || null) : null) || null;
   return { ioc, il, abScore, vtStr, otxP, tfH, domainVal };
 }
 
