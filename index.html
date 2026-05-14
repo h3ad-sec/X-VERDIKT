@@ -10,10 +10,11 @@
   <link rel="icon" href="https://h3ad-sec.github.io/fevicon.png?v=2026" type="image/png">
   <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Inter:wght@300;400;500;600&display=swap"
     rel="stylesheet">
-  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="css/style.css?v=20260514d">
 </head>
 
 <body class="dark">
+  <div id="scroll-sentinel" aria-hidden="true"></div>
   <canvas id="matrix"></canvas>
 
   <nav class="nav">
@@ -22,6 +23,10 @@
       <img id="navLogo" src="https://raw.githubusercontent.com/h3ad-sec/h3ad-sec.github.io/main/logo-dark.png"
         alt="H3AD-SEC" style="height:22px;vertical-align:middle;">
     </a>
+    <div class="xv-nav-pill" id="xv-nav-pill">
+      <span class="xv-pill-name"><span class="xv-pill-x">X</span><span class="xv-pill-v">-VERDIKT</span></span>
+      <span class="xv-pill-tagline">No More Tool-Hopping.</span>
+    </div>
     <div class="nav-links">
       <div class="nav-divider"></div>
       <a href="https://h3ad-sec.github.io" target="_blank" rel="noopener">HOME</a>
@@ -559,6 +564,15 @@
       scanResults = []; totalScanned = 0;
       if (typeof asnIntelResults !== 'undefined') { asnIntelResults = []; cidrIntelResults = []; }
     }
+
+    /* ── HERO SCROLL HIDE ─────────────────────────────────────────────────────── */
+    (function(){
+      var s=document.getElementById('scroll-sentinel');
+      if(!s)return;
+      new IntersectionObserver(function(e){
+        document.body.classList.toggle('hero-hidden',!e[0].isIntersecting);
+      },{threshold:0}).observe(s);
+    })();
 
     /* ── MATRIX ───────────────────────────────────────────────────────────────── */
     const canvas = document.getElementById('matrix'), ctx = canvas.getContext('2d');
