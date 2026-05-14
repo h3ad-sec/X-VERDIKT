@@ -281,13 +281,15 @@ body.light .btn-primary{color:#fff;}
 .asn-mode-btn.active{border-color:var(--accent2);background:rgba(59,130,246,.08);color:var(--accent2);}
 
 /* ── ASN / CIDR Intel panel ─────────────────────────────────────────────── */
-.asnintel-section-hdr{font-family:var(--mono);font-size:var(--fs-xs);color:var(--muted);letter-spacing:2px;padding:12px 20px 8px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px;margin-top:1px;}
-.asnintel-table{min-width:800px;}
-.asnintel-table th{white-space:nowrap;padding:10px 12px;font-size:10px;}
-.asni-cell{font-family:var(--mono);font-size:12px;padding:9px 12px;vertical-align:middle;}
+.asnintel-section-hdr{font-family:var(--mono);font-size:var(--fs-xs);color:var(--muted);letter-spacing:2px;padding:10px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px;background:var(--panel2);}
+.asnintel-section-hdr + .asnintel-table-wrap{border-top:none;}
+.asnintel-table-wrap{overflow-x:auto;}
+.asnintel-table{min-width:820px;width:100%;}
+.asnintel-table th{white-space:nowrap;padding:9px 12px;font-size:10px;letter-spacing:1.2px;}
+.asnintel-table td{padding:9px 12px;vertical-align:middle;font-family:var(--mono);font-size:12px;}
 .asni-muted{color:var(--muted);}
-.asni-num{text-align:center;color:var(--text);}
-.asni-desc{max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.asni-num{text-align:center;}
+.asni-desc{max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--muted);}
 .asni-prefix-chip{display:inline-block;font-family:var(--mono);font-size:10px;padding:2px 8px;border:1px solid var(--border);border-radius:2px;margin:2px 3px 2px 0;color:var(--muted);}
 .asni-chip-grid{display:flex;flex-wrap:wrap;margin-top:8px;}
 
@@ -441,6 +443,7 @@ body.light .btn-primary{color:#fff;}
   .results-table:not(.ipintel-table):not(.asnintel-table) td:nth-child(10){grid-column:1;grid-row:3;}
   .results-table:not(.ipintel-table):not(.asnintel-table) td:nth-child(11){grid-column:2;grid-row:3;display:flex;align-items:center;justify-content:flex-end;}
   .ipintel-table-wrap{overflow-x:auto!important;}
+  .asnintel-table-wrap{overflow-x:auto!important;}
   .modal-supp-grid{grid-template-columns:1fr;}
 }
 @media(max-width:480px){

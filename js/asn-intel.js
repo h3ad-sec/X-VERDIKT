@@ -150,9 +150,7 @@ async function _runASNScan(entry) {
   try {
     const [bgpData, prefixData, rdapData] = await Promise.all([
       _bgpview('asn', num, ctrl.signal).catch(e => ({ _err: e.message })),
-      asnIntelMode === 'iplist'
-        ? _bgpview('asn_prefixes', num, ctrl.signal).catch(e => ({ _err: e.message }))
-        : Promise.resolve(null),
+      _bgpview('asn_prefixes', num, ctrl.signal).catch(e => ({ _err: e.message })),
       _rdap('autnum', num, ctrl.signal).catch(e => ({ _err: e.message })),
     ]);
     clearTimeout(timer);
@@ -212,7 +210,7 @@ function _buildASNRow(entry, i) {
   const { num, done } = entry;
   if (!done) return `<tr id="asn-row-${i}">
     <td class="td-ioc"><span class="ioc-val">AS${num}</span></td>
-    ${Array(7).fill(`<td>${_loading()}</td>`).join('')}<td></td><td></td></tr>`;
+    ${Array(6).fill(`<td>${_loading()}</td>`).join('')}<td></td><td></td></tr>`;
 
   const d = entry.bgpview || {};
   const name    = escapeHtml(d.name || '—');

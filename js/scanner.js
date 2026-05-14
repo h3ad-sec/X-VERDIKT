@@ -68,6 +68,8 @@ async function startScan() {
   }
 
   document.getElementById('results-panel').style.display = '';
+  document.getElementById('ipintel-panel').style.display  = 'none';
+  document.getElementById('asnintel-panel').style.display = 'none';
   document.getElementById('progress-container').style.display = '';
   setScanBtnState('scanning');
 
@@ -375,8 +377,9 @@ async function startIPIntelScan() {
     ipIntelResults.push({ ioc, iplocate: null, ab: null, vt: null, otx: null, threatfox: null, done: false });
   }
 
-  document.getElementById('results-panel').style.display = 'none';
-  document.getElementById('ipintel-panel').style.display = '';
+  document.getElementById('results-panel').style.display  = 'none';
+  document.getElementById('ipintel-panel').style.display  = '';
+  document.getElementById('asnintel-panel').style.display = 'none';
   document.getElementById('progress-container').style.display = '';
   setScanBtnState('scanning');
   renderIPIntelRows(ipIntelResults);
