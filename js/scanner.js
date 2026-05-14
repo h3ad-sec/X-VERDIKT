@@ -36,9 +36,8 @@ async function fetchWithRetry(fn, retries = 2, ms = 10000) {
 }
 
 async function startScan() {
-  if (typeof currentMode !== 'undefined' && currentMode === 'ipintel') {
-    return startIPIntelScan();
-  }
+  if (typeof currentMode !== 'undefined' && currentMode === 'ipintel')  return startIPIntelScan();
+  if (typeof currentMode !== 'undefined' && currentMode === 'asnintel') return startASNCIDRScan();
   const raw = getInputText();
   if (!raw?.trim()) return;
 

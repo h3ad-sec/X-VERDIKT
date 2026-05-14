@@ -95,6 +95,14 @@ function parseIOCsWithMeta(raw) {
 }
 
 function parseIOCsRealtime() {
+  const mode = (typeof currentMode !== 'undefined') ? currentMode : 'all';
+
+  /* Delegate to ASN/CIDR parser when in that mode */
+  if (mode === 'asnintel') {
+    if (typeof parseASNCIDRRealtime === 'function') parseASNCIDRRealtime();
+    return;
+  }
+
   const raw = document.getElementById('ip-input')?.value || '';
   const meta = parseIOCsWithMeta(raw);
   const info = document.getElementById('ioc-parsed-info');
@@ -114,7 +122,6 @@ function parseIOCsRealtime() {
   }
 
   /* Filter for the active mode */
-  const mode = (typeof currentMode !== 'undefined') ? currentMode : 'all';
   const filtered = (typeof filterIOCsByMode === 'function') ? filterIOCsByMode(meta.iocs, mode) : meta.iocs;
 
   if (filtered.length === 0) {

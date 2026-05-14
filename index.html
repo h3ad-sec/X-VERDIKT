@@ -212,6 +212,11 @@
               <div class="mt-sub">Deep IP Enrichment</div>
               <div class="mt-count" id="mcount-ipintel"></div>
             </button>
+            <button class="mode-tab" data-mode="asnintel" onclick="switchMode('asnintel',this)">
+              <div class="mt-label" style="color:var(--accent2)">ASN / CIDR</div>
+              <div class="mt-sub">Network Intel</div>
+              <div class="mt-count" id="mcount-asnintel"></div>
+            </button>
           </div>
           <div class="input-tabs">
             <button class="input-tab active" onclick="switchInputTab('text',this)">PASTE / TYPE</button>
@@ -240,6 +245,12 @@
             </div>
             <input type="file" id="file-input" accept=".txt,.csv,.md,.json,.xlsx,.xls" style="display:none"
               onchange="handleFileUpload(event)">
+          </div>
+
+          <div class="asn-mode-toggle" id="asn-mode-toggle" style="display:none">
+            <span class="asn-mode-label">ASN MODE</span>
+            <button class="asn-mode-btn active" data-mode="profile" onclick="switchASNIntelMode('profile',this)">PROFILE</button>
+            <button class="asn-mode-btn" data-mode="iplist" onclick="switchASNIntelMode('iplist',this)">IP LIST</button>
           </div>
 
           <div class="action-row">
@@ -387,6 +398,74 @@
         </div>
       </section>
 
+      <section class="panel" id="asnintel-panel" style="display:none">
+        <div class="panel-header-static">
+          <div class="panel-title">
+            <svg width="13" height="13" viewBox="0 0 13 13" fill="none">
+              <rect x="1" y="1" width="11" height="11" stroke="var(--accent2)" stroke-width="1"/>
+              <path d="M4 4h5M4 6.5h5M4 9h3" stroke="var(--accent2)" stroke-width="1"/>
+            </svg>
+            ASN / CIDR INTEL RESULTS
+          </div>
+        </div>
+
+        <div id="asnintel-asn-section" style="display:none">
+          <div class="asnintel-section-hdr">
+            <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
+              <circle cx="5" cy="5" r="4" stroke="var(--accent2)" stroke-width="1"/>
+              <path d="M5 2.5v2.5l1.5 1" stroke="var(--accent2)" stroke-width="1" stroke-linecap="round"/>
+            </svg>
+            ASN ENRICHMENT
+          </div>
+          <div class="table-wrap">
+            <table class="results-table asnintel-table">
+              <thead>
+                <tr>
+                  <th class="col-ioc">ASN</th>
+                  <th>NAME</th>
+                  <th>COUNTRY</th>
+                  <th>DESCRIPTION</th>
+                  <th style="text-align:center">IPv4 PREFIXES</th>
+                  <th style="text-align:center">IPv6 PREFIXES</th>
+                  <th>RIR</th>
+                  <th></th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody id="asnintel-asn-body"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <div id="asnintel-cidr-section" style="display:none">
+          <div class="asnintel-section-hdr">
+            <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
+              <rect x="1" y="1" width="8" height="8" stroke="var(--accent2)" stroke-width="1"/>
+              <path d="M3 5h4M5 3v4" stroke="var(--accent2)" stroke-width="1" stroke-linecap="round"/>
+            </svg>
+            CIDR ENRICHMENT
+          </div>
+          <div class="table-wrap">
+            <table class="results-table asnintel-table">
+              <thead>
+                <tr>
+                  <th class="col-ioc">PREFIX</th>
+                  <th>NAME</th>
+                  <th>COUNTRY</th>
+                  <th>DESCRIPTION</th>
+                  <th>ALLOCATED</th>
+                  <th>ORIGIN ASN</th>
+                  <th>ABUSE BLOCK</th>
+                  <th></th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody id="asnintel-cidr-body"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
     </main>
 
     <footer class="site-footer">
@@ -446,12 +525,13 @@
   </div>
 
   <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
-  <script src="js/ioc-parser.js?v=20260509"></script>
+  <script src="js/ioc-parser.js?v=20260514"></script>
   <script src="js/api.js?v=20260510"></script>
-  <script src="js/scanner.js?v=20260509"></script>
+  <script src="js/scanner.js?v=20260514"></script>
   <script src="js/ui.js?v=20260511"></script>
   <script src="js/export.js?v=20260509"></script>
-  <script src="js/app.js"></script>
+  <script src="js/asn-intel.js?v=20260514"></script>
+  <script src="js/app.js?v=20260514"></script>
 
   <script>
     /* ── NAV ──────────────────────────────────────────────────────────────────── */
@@ -474,8 +554,10 @@
       document.getElementById('results-panel').style.display = 'none';
       document.getElementById('results-body').innerHTML = '';
       document.getElementById('summary-strip').innerHTML = '';
+      document.getElementById('asnintel-panel').style.display = 'none';
       const btn = document.getElementById('scan-btn'); if (btn) btn.disabled = true;
       scanResults = []; totalScanned = 0;
+      if (typeof asnIntelResults !== 'undefined') { asnIntelResults = []; cidrIntelResults = []; }
     }
 
     /* ── MATRIX ───────────────────────────────────────────────────────────────── */

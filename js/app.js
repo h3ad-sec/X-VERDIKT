@@ -27,6 +27,11 @@ const MODE_CONFIG = {
     types: ['ip', 'ipv6'],
     placeholder: `Paste IPs — one per line or comma/space separated\n\nExamples:\n  8.8.8.8\n  1.1.1.1\n  2001:db8::1\n  1[.]2[.]3[.]4  (defanged)\n\nDeep enrichment: Location · ASN · Privacy flags · AbuseIPDB · VirusTotal · OTX · ThreatFox\n\nCtrl+Enter to analyze`,
   },
+  asnintel: {
+    label: 'ASN / CIDR',
+    types: null,
+    placeholder: `Paste ASN numbers or CIDR blocks — one per line\n\nExamples:\n  AS13335          (Cloudflare)\n  AS15169          (Google)\n  8.8.8.0/24       (IPv4 CIDR)\n  2001:4860::/32   (IPv6 CIDR)\n\nASN profile: name · country · prefixes · RIR · registry contacts\nCIDR profile: owner · allocation · origin ASN · AbuseIPDB block score\n\nCtrl+Enter to analyze`,
+  },
 };
 
 function filterIOCsByMode(iocs, mode) {
@@ -41,6 +46,8 @@ function switchMode(mode, btn) {
   btn.classList.add('active');
   const ta = document.getElementById('ip-input');
   if (ta) ta.placeholder = MODE_CONFIG[mode].placeholder;
+  const asnToggle = document.getElementById('asn-mode-toggle');
+  if (asnToggle) asnToggle.style.display = mode === 'asnintel' ? '' : 'none';
   parseIOCsRealtime();
 }
 
