@@ -19,7 +19,7 @@ export default async function handler(req, res) {
   let url;
   if (type === 'asn') url = `https://api.bgpview.io/asn/${value}`;
   else if (type === 'asn_prefixes') url = `https://api.bgpview.io/asn/${value}/prefixes`;
-  else url = `https://api.bgpview.io/prefix/${encodeURIComponent(value)}`;
+  else url = `https://api.bgpview.io/prefix/${value}`;
 
   try {
     const resp = await fetch(url, {

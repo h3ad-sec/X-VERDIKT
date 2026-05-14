@@ -256,7 +256,7 @@ function _buildCIDRRow(entry, i) {
 
   let abuseCell = '<span style="color:var(--muted)">—</span>';
   if (entry.abuse) {
-    const rep = entry.abuse.reportedAddress || 0;
+    const rep = Array.isArray(entry.abuse.reportedAddress) ? entry.abuse.reportedAddress.length : (entry.abuse.reportedAddress || 0);
     const tot = entry.abuse.numAddresses    || 0;
     const pct = tot > 0 ? Math.round((rep / tot) * 100) : 0;
     const col = pct >= 20 ? 'var(--red)' : pct >= 5 ? 'var(--yellow)' : 'var(--accent)';
@@ -351,7 +351,7 @@ function openCIDRModal(i) {
 
   let abuseSection = '';
   if (abuse) {
-    const rep = abuse.reportedAddress || 0;
+    const rep = Array.isArray(abuse.reportedAddress) ? abuse.reportedAddress.length : (abuse.reportedAddress || 0);
     const tot = abuse.numAddresses    || 0;
     const pct = tot > 0 ? Math.round((rep / tot) * 100) : 0;
     const col = pct >= 20 ? 'var(--red)' : pct >= 5 ? 'var(--yellow)' : 'var(--accent)';
