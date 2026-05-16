@@ -1,6 +1,8 @@
 # X-VERDIKT
 
-Deep IOC enrichment across 11+ threat intelligence sources. No API key management — managed mode only.
+**No More Tool-Hopping.**
+
+Deep IOC enrichment across 11+ threat intelligence sources. Built for analysts who need more than a verdict — full reputation context, geolocation, network metadata, and privacy flags in a single view.
 
 Live: [h3ad-sec.github.io/X-VERDIKT](https://h3ad-sec.github.io/X-VERDIKT/)
 
@@ -10,12 +12,10 @@ Live: [h3ad-sec.github.io/X-VERDIKT](https://h3ad-sec.github.io/X-VERDIKT/)
 
 ### Standard Enrichment
 
-Supports IP, domain, URL, and hash (MD5 / SHA1 / SHA256 / SHA512). Paste IOCs or upload a file (.txt, .csv, .md, .json, .xlsx).
-
-**Sources by type:**
+Supports IPv4, IPv6, domains, URLs, and MD5 / SHA-1 / SHA-256 / SHA-512 hashes. Each IOC type is scored against a dedicated source set.
 
 | Source | IP | Domain | URL | Hash |
-|---|---|---|---|---|
+|--------|----|--------|-----|------|
 | VirusTotal | 30 pts | 50 pts | 50 pts | 25 pts |
 | AbuseIPDB | 40 pts | — | — | — |
 | OTX | 10 pts | 10 pts | 10 pts | 10 pts |
@@ -27,39 +27,42 @@ Supports IP, domain, URL, and hash (MD5 / SHA1 / SHA256 / SHA512). Paste IOCs or
 | FileScan.io | — | — | — | 25 pts |
 | Shodan | supplementary | — | — | — |
 
-Results: verdict + score, per-source raw values, detail modal, and export to CSV / JSON / Markdown / Excel.
+Shodan provides ports, CVEs, and threat tags for IPs without contributing to the score.
 
 ---
 
 ### IP Intel Mode
 
-IP-only deep enrichment. Produces a dedicated table with geolocation, network, and privacy context alongside threat data.
+Deep-dive mode for IP addresses only. Pulls geolocation, ASN, organization, domain, and privacy context alongside full threat reputation data.
 
 **Sources:** IPLocate · AbuseIPDB · VirusTotal · OTX · ThreatFox
 
-**Table columns:**
+**Privacy flags:** TOR · VPN · PROXY · HOSTING · BOGON · ABUSER · ANON · iCLOUD
 
-| Column | Source |
-|---|---|
-| AbuseIPDB score | AbuseIPDB |
-| VT detections | VirusTotal |
-| OTX pulses | OTX |
-| ThreatFox hits | ThreatFox |
-| Country | IPLocate |
-| Organization | IPLocate |
-| Domain | IPLocate → AbuseIPDB fallback |
-| Privacy flags | IPLocate (`ABUSER · TOR · BOGON · VPN · PROXY · ANON · HOSTING · iCLOUD`) |
+Results include a dedicated table with country, organization, domain, and all privacy flags per IP. Copy as KV (≤ 5 IPs) or TSV (bulk). Export to Excel.
 
-**Copy:** KV format for ≤ 5 IPs; TSV for > 5.  
-**Export:** Excel / TSV with context fields (AB confidence + reports, VT engine counts, OTX pulses, ThreatFox hits).
+---
+
+## Features
+
+- Parallel scan engine — all sources fire simultaneously
+- Auto-detects and defangs obfuscated indicators (`hxxps://`, `1[.]2[.]3[.]4`, `[dot]`)
+- Bulk textarea and file upload (.txt, .csv, .json, .xlsx)
+- Quick single-IOC lookup bar
+- Mode tabs: BULK / IP / IPv6 / DOMAIN+URL / HASH / IP INTEL
+- Detail modal with per-source raw data
+- Export: CSV, JSON, Markdown, Excel
+- Dark / light theme
 
 ---
 
 ## Stack
 
-- Frontend: static HTML/CSS/JS — GitHub Pages
-- Backend: Vercel serverless proxies (`/api/`) — one file per source
-- No build step, no framework
+- Vanilla JS, HTML, CSS — no framework, no build step
+- GitHub Pages (static frontend)
+- Vercel serverless functions (all API calls proxied server-side — managed mode only)
+
+---
 
 ## File structure
 
@@ -68,13 +71,13 @@ X-VERDIKT/
 ├── index.html
 ├── css/style.css
 ├── js/
-│   ├── ioc-parser.js   — multi-type IOC parser with defang support
-│   ├── api.js          — source integrations + response parsers
+│   ├── ioc-parser.js   — multi-type parser, defang support
+│   ├── api.js          — 11 source integrations + response parsers
 │   ├── scanner.js      — parallel scan engine (standard + IP Intel)
-│   ├── ui.js           — table/modal rendering, copy/export helpers
-│   ├── export.js       — CSV/JSON/Markdown/Excel export
-│   └── app.js          — init, server status probe, file upload
-└── api/
+│   ├── ui.js           — table, modal, IP Intel rendering
+│   ├── export.js       — CSV / JSON / Markdown / Excel
+│   └── app.js          — init, server probe, file upload
+└── api/                — Vercel serverless proxies
     ├── vt.js · abuseipdb.js · otx.js · urlscan.js · threatfox.js
     ├── urlhaus.js · malwarebazaar.js · hybridanalysis.js
     ├── shodan.js · filescan.js · iplocate.js · status.js
@@ -82,4 +85,8 @@ X-VERDIKT/
 
 ---
 
-Part of [H3AD-SEC](https://h3ad-sec.github.io/) — H3AD-X suite.
+## Part of H3AD-SEC
+
+X-VERDIKT is a sub-tool under [H3AD-X](https://h3ad-sec.github.io/H3AD-X/) — Threat Intelligence hub of the [H3AD-SEC](https://h3ad-sec.github.io) platform.
+
+Related tools: [VERDIKT](https://h3ad-sec.github.io/VERDIKT/) · [PARSE-X](https://h3ad-sec.github.io/PARSE-X/)
