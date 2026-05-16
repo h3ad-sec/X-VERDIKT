@@ -37,7 +37,6 @@ async function fetchWithRetry(fn, retries = 2, ms = 10000) {
 
 async function startScan() {
   if (typeof currentMode !== 'undefined' && currentMode === 'ipintel')  return startIPIntelScan();
-  if (typeof currentMode !== 'undefined' && currentMode === 'asnintel') return startASNCIDRScan();
   const raw = getInputText();
   if (!raw?.trim()) return;
 
@@ -69,7 +68,6 @@ async function startScan() {
 
   document.getElementById('results-panel').style.display = '';
   document.getElementById('ipintel-panel').style.display  = 'none';
-  document.getElementById('asnintel-panel').style.display = 'none';
   document.getElementById('progress-container').style.display = '';
   setScanBtnState('scanning');
 
@@ -379,7 +377,6 @@ async function startIPIntelScan() {
 
   document.getElementById('results-panel').style.display  = 'none';
   document.getElementById('ipintel-panel').style.display  = '';
-  document.getElementById('asnintel-panel').style.display = 'none';
   document.getElementById('progress-container').style.display = '';
   setScanBtnState('scanning');
   renderIPIntelRows(ipIntelResults);

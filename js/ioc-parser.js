@@ -97,11 +97,6 @@ function parseIOCsWithMeta(raw) {
 function parseIOCsRealtime() {
   const mode = (typeof currentMode !== 'undefined') ? currentMode : 'all';
 
-  /* Delegate to ASN/CIDR parser when in that mode */
-  if (mode === 'asnintel') {
-    if (typeof parseASNCIDRRealtime === 'function') parseASNCIDRRealtime();
-    return;
-  }
 
   const raw = document.getElementById('ip-input')?.value || '';
   const meta = parseIOCsWithMeta(raw);
@@ -116,6 +111,7 @@ function parseIOCsRealtime() {
     domain:  meta.byType.domain + meta.byType.url,
     ipintel: meta.byType.ip + meta.byType.ipv6,
   };
+
   for (const [m, n] of Object.entries(byMode)) {
     const el = document.getElementById(`mcount-${m}`);
     if (el) el.textContent = n > 0 ? `${n} IOC${n > 1 ? 's' : ''}` : '';
