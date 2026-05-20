@@ -8,14 +8,12 @@
   <meta name="description"
     content="X-VERDIKT by H3AD-SEC — Deep IOC enrichment with 11 threat intelligence sources. Supports IPs, domains, URLs, and hashes. VT · AbuseIPDB · OTX · URLScan · ThreatFox · URLhaus · MalwareBazaar · HybridAnalysis · FileScan.io · Shodan. No More Tool-Hopping.">
   <link rel="icon" href="https://h3ad-sec.github.io/fevicon.png?v=2026" type="image/png">
-  <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Inter:wght@300;400;500;600&display=swap"
-    rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Exo+2:wght@300;400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="css/style.css?v=20260514d">
 </head>
 
 <body class="dark">
   <div id="scroll-sentinel" aria-hidden="true"></div>
-  <canvas id="matrix"></canvas>
 
   <nav class="nav">
     <div class="hamburger" id="hamburger" onclick="toggleDrawer()"><span></span><span></span><span></span></div>
@@ -512,24 +510,6 @@
       },{threshold:0}).observe(s);
     })();
 
-    /* ── MATRIX ───────────────────────────────────────────────────────────────── */
-    const canvas = document.getElementById('matrix'), ctx = canvas.getContext('2d');
-    const chars = [
-      '8.8.8.8', '1.1.1.1', '10.0.0.1', '192.168.', '172.16.', '0.0.0.0', '255.255.255.0',
-      '2001:db8::', 'fe80::', '::1', '2606:4700::', 'IPv4', 'IPv6', 'CIDR', 'ASN', 'BGP',
-      'VT', 'ABUSEIPDB', 'OTX', 'SHODAN', 'THREATFOX', 'URLHAUS', 'HYBRIDANALYSIS', 'URLSCAN',
-      'C2', 'BOTNET', 'SCANNER', 'BRUTEFORCE', 'PROBING', 'TOR', 'HONEYPOT', 'MALWARE',
-      'CVE', 'CVSS', 'PORT', 'BANNER', 'ISP', 'GEOIP', 'RDNS', 'PTR', 'WHOIS',
-      'BLOCK', 'INVESTIGATE', 'ALLOW', 'MONITOR', 'MALICIOUS', 'SUSPICIOUS', 'BENIGN', 'UNKNOWN',
-      'PULSE', 'IOC', 'TI', 'ENRICHMENT', 'REPUTATION', 'CONFIDENCE', 'THREAT', 'HUNT',
-      '443', '80', '22', '3389', '445', '8080', '8443', '25', '587', '993',
-      'X-VERDIKT', 'H3AD-X', 'H3AD-SEC', 'DEEP', 'INTELLIGENCE', 'ZERO AMBIGUITY',
-      'SIGMA', 'STIX2', 'TAXII', 'YARA', 'FEED', 'INDICATOR', 'ATTRIBUTION',
-    ];
-    let drops = [];
-    function initMatrix() { canvas.width = window.innerWidth; canvas.height = window.innerHeight; drops = Array(Math.floor(window.innerWidth / 18)).fill(1); }
-    function drawMatrix() { const l = document.body.classList.contains('light'); ctx.fillStyle = l ? 'rgba(245,247,251,0.08)' : 'rgba(0,0,0,0.12)'; ctx.fillRect(0, 0, canvas.width, canvas.height); ctx.fillStyle = l ? '#0077ff' : '#00ff9f'; ctx.font = '12px monospace'; for (let i = 0; i < drops.length; i++) { ctx.fillText(chars[Math.floor(Math.random() * chars.length)], i * 18, drops[i] * 18); if (drops[i] * 18 > canvas.height && Math.random() > 0.975) drops[i] = 0; drops[i]++; } }
-    window.addEventListener('resize', initMatrix); initMatrix(); setInterval(drawMatrix, 45);
   </script>
 </body>
 
