@@ -424,9 +424,10 @@ body.light .btn-primary{color:#fff;}
 @media(max-width:700px){
   .result-filter-bar{flex-direction:column;align-items:flex-start;gap:8px;}
   .filter-group{flex-wrap:wrap;}
-  .search-wrap{margin-left:0;}
+  .search-wrap{margin-left:0;width:100%;}
+  .result-search{width:100%;}
   .panel-header-static{flex-wrap:wrap;gap:8px;}
-  .table-wrap{overflow-x:visible;}
+  .table-wrap{overflow-x:auto;}
   .results-table:not(.ipintel-table){display:block;width:100%;}
   .results-table:not(.ipintel-table) thead{display:none;}
   .results-table:not(.ipintel-table) tbody{display:block;}
@@ -442,9 +443,43 @@ body.light .btn-primary{color:#fff;}
   .results-table:not(.ipintel-table) td:nth-child(11){grid-column:2;grid-row:3;display:flex;align-items:center;justify-content:flex-end;}
   .ipintel-table-wrap{overflow-x:auto!important;}
   .modal-supp-grid{grid-template-columns:1fr;}
+  .action-row{flex-wrap:wrap;gap:8px;}
+  .quick-ip-bar{flex-wrap:wrap;}
+  .quick-ip-label{display:none;}
+  .quick-ip-input{width:100%;}
+  .api-actions{flex-wrap:wrap;}
+  .iim-links{flex-direction:column;}
+  .modal-score-card{grid-template-columns:1fr;}
+  .msc-right{align-items:flex-start;}
+}
+@media(max-width:640px){
+  .filter-group{flex-wrap:wrap;gap:4px;}
+  .result-filter-bar{flex-wrap:wrap;}
+  .quick-ip-bar{flex-wrap:wrap;gap:8px;}
+  .quick-ip-input{width:100%;min-width:0;}
+  .btn-quick{width:100%;}
+  .action-row{flex-wrap:wrap;}
+  .panel-header-static .btn-export{width:100%;justify-content:center;margin-left:0;}
+  .iph-grid{grid-template-columns:1fr;}
 }
 @media(max-width:480px){
   .managed-badge{display:none;}
+  .summary-strip{flex-wrap:nowrap;overflow-x:auto;}
+  .summary-card{min-width:70px;padding:10px 10px;}
+  .summary-num{font-size:18px;}
+  .panel-body{padding:14px;}
+  .modal-intel-grid{grid-template-columns:1fr;}
+  .mode-tabs{grid-template-columns:1fr 1fr;}
+  .iph-grid{grid-template-columns:1fr;}
+}
+
+@media(max-width:320px){
+  .wrapper{padding-left:10px;padding-right:10px;}
+  .btn{padding:8px 12px;font-size:10px;letter-spacing:1px;}
+  .btn-primary{padding:10px 14px;width:100%;}
+  .mode-tabs{grid-template-columns:1fr;}
+  .summary-card{min-width:60px;padding:8px 8px;}
+  .summary-num{font-size:16px;}
 }
 
 /* ── IP Highlights Card ─────────────────────────────────────────────────── */
