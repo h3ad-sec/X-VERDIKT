@@ -1,4 +1,33 @@
 
+// 4+ char TLDs. 2-char (ccTLDs) and 3-char (com/net/org/etc.) are always valid.
+const KNOWN_TLDS_4PLUS = new Set([
+  'info','mobi','name','arpa','coop','aero','jobs','post',
+  'online','store','site','tech','app','dev','blog','news',
+  'cloud','media','live','click','link','space','zone','plus',
+  'club','guru','work','works','tools','tips','ninja','rocks',
+  'world','global','group','solutions','services','systems',
+  'software','support','agency','digital','network','center',
+  'today','expert','email','social','studio','design','photo',
+  'video','music','health','care','bank','cash','money',
+  'finance','trade','market','travel','hotel','tours','rent',
+  'sale','deals','legal','computer','hosting','server',
+  'security','academy','school','college','university',
+  'education','training','institute','foundation','company',
+  'business','management','consulting','engineering','science',
+  'research','technology','industrial','international',
+  'government','community','family','church','charity','shop',
+  'game','games','onion','i2p','local','asia','porn','adult',
+  'sexy','dating','casino','poker','free','best','news','live',
+  'stream','racing','trade','review','win','loan','work','men',
+  'diet','click','download','accountant','cricket','country',
+  'webcam','faith','science','party','stream','rocks','band',
+  'property','report','expert','pizza','beer','kitchen','yoga',
+  'solar','repair','cleaning','plumbing','gallery','tattoo',
+  'camera','equipment','lighting','directory','glass','exposed',
+  'auction','democrat','republican','democrat','voting','tax',
+  'mortgage','loans','attorney','lawyer','legal','court',
+]);
+
 const IPV4_RE = /\b(?:(?:25[0-5]|2[0-4]\d|[01]?\d\d?)\.){3}(?:25[0-5]|2[0-4]\d|[01]?\d\d?)\b/g;
 const IPV6_RE = /(?:[0-9a-fA-F]{1,4}:){7}[0-9a-fA-F]{1,4}|(?:[0-9a-fA-F]{1,4}:){1,7}:|(?:[0-9a-fA-F]{1,4}:){1,6}:[0-9a-fA-F]{1,4}|(?:[0-9a-fA-F]{1,4}:){1,5}(?::[0-9a-fA-F]{1,4}){1,2}|(?:[0-9a-fA-F]{1,4}:){1,4}(?::[0-9a-fA-F]{1,4}){1,3}|(?:[0-9a-fA-F]{1,4}:){1,3}(?::[0-9a-fA-F]{1,4}){1,4}|(?:[0-9a-fA-F]{1,4}:){1,2}(?::[0-9a-fA-F]{1,4}){1,5}|[0-9a-fA-F]{1,4}:(?::[0-9a-fA-F]{1,4}){1,6}|:(?::[0-9a-fA-F]{1,4}){1,7}|::(?:[fF]{4}(?::0{1,4})?:)?(?:25[0-5]|(?:2[0-4]|1?\d)?\d)(?:\.(?:25[0-5]|(?:2[0-4]|1?\d)?\d)){3}|(?:[0-9a-fA-F]{1,4}:){1,4}:(?:25[0-5]|(?:2[0-4]|1?\d)?\d)(?:\.(?:25[0-5]|(?:2[0-4]|1?\d)?\d)){3}/g;
 
@@ -77,8 +106,11 @@ function parseIOCsWithMeta(raw) {
     const v = m[0].toLowerCase();
     if (seen.has(v)) continue;
     const labels = v.split('.');
+    const tld = labels[labels.length - 1];
     /* skip if all non-TLD labels are pure digits (version strings, stray IP fragments) */
     if (labels.slice(0, -1).every(l => /^\d+$/.test(l))) continue;
+    /* skip unknown 4+ char TLDs — prevents usernames like ram.charan, hrushikesh.badgujar */
+    if (tld.length > 3 && !KNOWN_TLDS_4PLUS.has(tld)) continue;
     seen.add(v);
     iocs.push({ value: v, type: 'domain', label: 'Domain' });
   }

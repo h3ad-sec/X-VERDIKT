@@ -1243,6 +1243,12 @@ function iiClipboard(text, msg) {
   } else { fallback(); }
 }
 
+window.copyAllIPIntelIPs = function() {
+  if (!ipIntelResults?.length) { showToast('No IPs to copy', 'warning'); return; }
+  const ips = ipIntelResults.map(e => e.ioc.value).join('\n');
+  navigator.clipboard.writeText(ips).then(() => showToast(`${ipIntelResults.length} IP${ipIntelResults.length > 1 ? 's' : ''} copied`, 'success'));
+};
+
 function copyIPIntelRow(i) {
   const entry = ipIntelResults[i];
   if (!entry || !entry.done) { showToast('Row not ready', 'warning'); return; }
