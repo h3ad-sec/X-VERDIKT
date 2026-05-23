@@ -512,8 +512,8 @@
 
     /* ── THEME ────────────────────────────────────────────────────────────────── */
     function updateNavLogo(t) { const el = document.getElementById('navLogo'); if (el) el.src = t === 'light' ? 'https://raw.githubusercontent.com/h3ad-sec/h3ad-sec.github.io/main/logo-light.png' : 'https://raw.githubusercontent.com/h3ad-sec/h3ad-sec.github.io/main/logo-dark.png'; }
-    function toggleTheme() { const l = document.body.classList.toggle('light'); document.body.classList.toggle('dark', !l); const t = l ? 'light' : 'dark'; localStorage.setItem('theme', t); updateNavLogo(t); }
-    const _t = localStorage.getItem('theme');
+    function toggleTheme() { const l = document.body.classList.toggle('light'); document.body.classList.toggle('dark', !l); const t = l ? 'light' : 'dark'; localStorage.setItem('h3ad-theme', t); updateNavLogo(t); }
+    const _t = localStorage.getItem('h3ad-theme');
     if (_t === 'light') { document.body.classList.add('light'); document.body.classList.remove('dark'); updateNavLogo('light'); }
     else { document.body.classList.add('dark'); document.body.classList.remove('light'); updateNavLogo('dark'); }
 
