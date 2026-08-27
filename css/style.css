@@ -609,3 +609,7 @@ body.nav-compact .hamburger{display:flex;}
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { transition: none !important; animation: none !important; }
 }
+
+/* H3AD-SEC MENU SYNC: hamburger-only nav */
+.nav-links{display:none!important;}
+.hamburger{display:flex!important;}
