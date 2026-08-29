@@ -11,7 +11,7 @@
   --us:#06b6d4; --tf:#f43f5e; --uh:#ec4899;
   --mb:#f59e0b; --ha:#84cc16; --sh:#10b981; --fs:#818cf8;
   --red:#ff3b5c; --yellow:#ffd60a; --green:#00d4ff;
-  --mono:'Share Tech Mono',monospace; --sans:'Exo 2',sans-serif;
+  --mono:'Share Tech Mono',monospace; --sans:'Exo 2',sans-serif; --ui:'IBM Plex Sans',sans-serif;
   --fs-xs:11px; --fs-sm:13px; --fs-base:15px; --fs-md:16px; --fs-lg:18px;
 }
 body.light {
@@ -403,7 +403,7 @@ body.light .btn-primary{color:#fff;}
 
 /* ── Footer ─────────────────────────────────────────────────────────────── */
 .site-footer{border-top:1px solid var(--border);margin-top:32px;padding:16px 28px;}
-.footer-top{max-width:1700px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;gap:0.5rem 1.5rem;font-family:var(--mono);font-size:var(--fs-xs);color:var(--muted);flex-wrap:wrap;}
+.footer-top{max-width:1700px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;gap:0.5rem 1.5rem;font-family:var(--ui);font-size:var(--fs-xs);color:var(--muted);flex-wrap:wrap;}
 .footer-left{color:var(--muted);}
 .footer-right{color:var(--muted);text-transform:uppercase;letter-spacing:0.08em;opacity:0.85;}
 .footer-src-list{max-width:1700px;margin:10px auto 0;display:flex;flex-wrap:wrap;justify-content:center;gap:5px;font-family:var(--mono);font-size:var(--fs-xs);color:var(--muted);text-align:center;}
